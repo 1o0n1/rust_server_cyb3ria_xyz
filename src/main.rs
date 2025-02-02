@@ -1,16 +1,16 @@
-mod db;
 mod utils;
 mod models;
 mod handlers;
+mod db;
 
 use warp::Filter;
 use dotenv::dotenv;
 use log::info;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
-use handlers::auth::{register_route, login_route};
+use handlers::auth::{register::register_route, login::login_route};
 use handlers::chat::client_connection;
-use handlers::upload::upload_route; // Изменено импортирование
+use handlers::upload::upload_route;
 
 type Clients = Arc<Mutex<std::collections::HashMap<String, usize>>>;
 type Sender = Arc<Mutex<broadcast::Sender<String>>>;

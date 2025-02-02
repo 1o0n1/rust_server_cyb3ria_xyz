@@ -6,9 +6,11 @@ use tokio::sync::broadcast;
 use tokio::sync::Mutex as TokioMutex;
 use log::{info, error, debug};
 use serde::{Deserialize, Serialize};
-use crate::db::{
-    save_message_to_db, send_message_history, find_user_by_username
+use crate::db::messages::{
+    save_message_to_db
 };
+use crate::db::users::find_user_by_username;
+use crate::db::send_message_history;
 use crate::utils::generate_client_id;
 use std::net::SocketAddr;
 use tokio::time::{Duration as TokioDuration, interval};
