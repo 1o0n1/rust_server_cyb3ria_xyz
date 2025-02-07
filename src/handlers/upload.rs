@@ -42,7 +42,7 @@ pub async fn upload_handler(mut form: warp::multipart::FormData) -> Result<impl 
                      ));
                   }
            };
-           let file_path = Path::new("/var/www/cyb3ria.xyz/uploaded").join(&file_name); // Использование абсолютного пути
+           let file_path = Path::new("/var/www/rust_server_cyb3ria_xyz/uploaded").join(&file_name); // Использование абсолютного пути
             let file_path_str = file_path.to_str().unwrap();
              
             let mut file = match File::create(&file_path).await {

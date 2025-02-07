@@ -1,0 +1,85 @@
+use tokio_postgres::NoTls;
+use std::error::Error as StdError;
+use log::{debug};
+use crate::models::Session;
+use chrono::{DateTime, Utc, NaiveDateTime};
+use uuid::Uuid;
+use tokio_postgres::types::{ToSql, Type};
+use bytes::BytesMut;
+
+// Обертка для DateTime<Utc>, чтобы обойти "orphan rule"
+#[derive(Debug)]
+struct Timestamp(DateTime<Utc>);
+
+impl ToSql for Timestamp {
+    tokio_postgres::types::accepts!(TIMESTAMP, TIMESTAMPTZ);
+    tokio_postgres::types::to_sql_checked!();
+
+    fn to_sql(&self, _type: &Type, out: &mut BytesMut) -> Result<tokio_postgres::types::IsNull, Box<dyn StdError + Sync + Send>> {
+        let timestamp = self.0.timestamp();
+        (timestamp).to_sql(_type, out).map_err(|e| e.into())
+    }
+}
+
+
+/// Сохраняет сессию в базу данных
+pub async fn save_session_to_db(session: Session) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let (client, connection) =
+        tokio_postgres::connect("host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db", NoTls)
+            .await
+            .expect("Failed to connect to database");
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+
+    debug!("Saving session to database: {:?}", session);
+
+    let expires_at = session.expires_at.map(Timestamp);
+
+    client.execute(
+        "INSERT INTO sessions (session_id, user_uuid, device_id, expires_at) VALUES ($1, $2, $3, $4)",
+        &[&session.session_id, &session.user_uuid, &session.device_id, &expires_at],
+    )
+    .await?;
+
+    Ok(())
+}
+
+/// Ищет сессию по session_id
+pub async fn find_session_by_session_id(session_id: &Uuid) -> Result<Option<Session>, Box<dyn StdError + Send + Sync>> {
+    let (client, connection) =
+        tokio_postgres::connect("host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db", NoTls)
+            .await
+            .expect("Failed to connect to database");
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+
+    debug!("Finding session in database by session_id: {}", session_id);
+
+    let row = client
+        .query_opt("SELECT session_id, user_uuid, device_id, expires_at FROM sessions WHERE session_id = $1", &[&session_id])
+        .await?;
+
+    if let Some(row) = row {
+         let expires_at: Option<i64> = row.get(3);
+         let session = Session {
+            session_id: row.get(0),
+            user_uuid: row.get(1),
+            device_id: row.get(2),
+             expires_at: expires_at.map(|ts| {
+                let naive_datetime = NaiveDateTime::from_timestamp_opt(ts, 0).unwrap();
+                DateTime::<Utc>::from_naive_utc_and_offset(naive_datetime, Utc)
+             }),
+         };
+          Ok(Some(session))
+    } else {
+        Ok(None)
+    }
+}
