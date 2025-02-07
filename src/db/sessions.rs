@@ -1,6 +1,6 @@
 use tokio_postgres::NoTls;
 use std::error::Error as StdError;
-use log::{debug};
+use log::{debug, error};
 use crate::models::Session;
 use chrono::{DateTime, Utc};
 use tokio_postgres::types::{ToSql, Type};
@@ -22,18 +22,24 @@ impl ToSql for Timestamp {
     }
 }
 
-/// Сохраняет сессию в базу данных
-pub async fn save_session_to_db(session: Session) -> Result<(), Box<dyn StdError + Send + Sync>> {
+// Функция для подключения к базе данных
+pub async fn connect_to_db() -> Result<tokio_postgres::Client, Box<dyn StdError + Send + Sync>> {
     let (client, connection) =
         tokio_postgres::connect("host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db", NoTls)
-            .await
-            .expect("Failed to connect to database");
+            .await?;
 
     tokio::spawn(async move {
         if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
+            error!("connection error: {}", e);
         }
     });
+
+    Ok(client)
+}
+
+/// Сохраняет сессию в базу данных
+pub async fn save_session_to_db(session: Session) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;
 
     debug!("Saving session to database: {:?}", session);
 
@@ -50,16 +56,7 @@ pub async fn save_session_to_db(session: Session) -> Result<(), Box<dyn StdError
 
 /// Ищет сессию по session_id
 pub async fn find_session_by_session_id(session_id: &Uuid) -> Result<Option<Session>, Box<dyn StdError + Send + Sync>> {
-    let (client, connection) =
-        tokio_postgres::connect("host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db", NoTls)
-            .await
-            .expect("Failed to connect to database");
-
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
-        }
-    });
+    let client = connect_to_db().await?;
 
     debug!("Finding session in database by session_id: {}", session_id);
 
@@ -67,13 +64,26 @@ pub async fn find_session_by_session_id(session_id: &Uuid) -> Result<Option<Sess
         .query_opt("SELECT session_id, user_uuid, device_id, expires_at FROM sessions WHERE session_id = $1", &[&session_id])
         .await?;
 
-       if let Some(row) = row {
-         let expires_at: Option<i64> = row.get(3);
+    if let Some(row) = row {
+        let expires_at: Option<i64> = row.get(3);
+        let expires_at_datetime: Option<DateTime<Utc>> = match expires_at {
+            Some(ts) => {
+                match DateTime::<Utc>::from_timestamp(ts, 0) {
+                    Some(dt) => Some(dt),
+                    None => {
+                        error!("Invalid timestamp: {}", ts);
+                        None // Or handle the error as you see fit, perhaps return an error
+                    }
+                }
+            }
+            None => None,
+        };
+
         let session = Session {
             session_id: row.get(0),
             user_uuid: row.get(1),
             device_id: row.get(2),
-            expires_at: expires_at.map(|ts|  DateTime::<Utc>::from_timestamp(ts, 0).unwrap()  ),
+            expires_at: expires_at_datetime,
         };
         Ok(Some(session))
     } else {
