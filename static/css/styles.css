@@ -6,7 +6,8 @@ body {
     height: 100vh;
     margin: 0;
     font-family: Arial, sans-serif;
-    background-color: #f0f0f0;
+    background-color: #1e1e1e;
+    color: #e0e0e0;
 }
 
 #messages {
@@ -15,16 +16,16 @@ body {
     width: 100%;
     max-height: 75vh;
     overflow-y: auto;
-    border: 1px solid #ccc;
-    background-color: #fff;
+    border: 1px solid #444;
+    background-color: #2e2e2e;
     margin-bottom: 20px;
 }
 
 #messages li {
     padding: 10px;
     margin-bottom: 10px;
-    background-color: #f9f9f9;
-    border-bottom: 1px solid #eee;
+    background-color: #2e2e2e; /* Сделали фон таким же, как у контейнера */
+    border-bottom: none; /* Убрали нижнюю границу */
 }
 
 #form {
@@ -34,15 +35,17 @@ body {
 }
 
 #input {
-    border: 1px solid #ccc;
+    border: 1px solid #555;
     padding: 10px;
     width: 80%;
     margin-right: 10px;
     border-radius: 4px;
+    background-color: #333;
+    color: #e0e0e0;
 }
 
 #form > button {
-    background: #333;
+    background: #4CAF50;
     border: none;
     padding: 10px 20px;
     color: #fff;
@@ -51,7 +54,7 @@ body {
 }
 
 #form > button:hover {
-    background: #555;
+    background: #367c39;
 }
 
 h1 {
@@ -70,7 +73,7 @@ input[type="text"], input[type="password"], input[type="file"] {
     padding: 10px;
     border: 1px solid #555;
     background: #333;
-    color: #fff;
+    color: #e0e0e0;
 }
 
 button {
