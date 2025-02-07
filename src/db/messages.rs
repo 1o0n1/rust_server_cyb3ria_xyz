@@ -1,4 +1,4 @@
-use tokio_postgres::{NoTls, types::Type};
+use tokio_postgres::{types::Type};
 use std::error::Error as StdError;
 use uuid::Uuid;
 use log::{debug, error};
@@ -11,7 +11,7 @@ use futures_util::SinkExt;
 use std::sync::Arc;
 
 // Обертка для DateTime<Utc>, чтобы обойти "orphan rule"
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct Timestamp(DateTime<Utc>);
 
 impl ToSql for Timestamp {
@@ -24,10 +24,19 @@ impl ToSql for Timestamp {
     }
 }
 
+/// Экранирует строку для безопасного отображения в HTML
+fn escape_html(text: &str) -> String {
+    text.replace("&", "&")
+        .replace("<", "<")
+        .replace(">", ">")
+        .replace("\"", "&quot;")
+        .replace("'", "'")
+}
+
 /// Сохраняет сообщение в базу данных
 pub async fn save_message_to_db(message: &str, user_uuid: Uuid) -> Result<(), Box<dyn StdError + Send + Sync>> {
     let (client, connection) =
-        tokio_postgres::connect("host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db", NoTls)
+        tokio_postgres::connect("host=localhost user=cyb3ria password=!Abs123 dbname='cyb3ria_db'", tokio_postgres::NoTls)
             .await?;
 
     tokio::spawn(async move {
@@ -50,7 +59,7 @@ pub async fn save_message_to_db(message: &str, user_uuid: Uuid) -> Result<(), Bo
 /// Отправляет историю сообщений клиенту
 pub async fn send_message_history(client_ws_sender: Arc<TokioMutex<futures_util::stream::SplitSink<WebSocket, Message>>>) -> Result<(), Box<dyn StdError + Send + Sync>> {
     let (client, connection) =
-        tokio_postgres::connect("host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db", NoTls)
+        tokio_postgres::connect("host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db", tokio_postgres::NoTls)
             .await?;
 
     tokio::spawn(async move {
@@ -73,7 +82,8 @@ pub async fn send_message_history(client_ws_sender: Arc<TokioMutex<futures_util:
                  match username_result {
                     Ok(row) => {
                          let username: String = row.get(0);
-                         format!("{}: {}", username, message)
+                         let escaped_username = escape_html(&username); // Экранируем имя пользователя
+                         format!("{}: {}", escaped_username, message)
                      },
                     Err(e) => {
                        error!("Failed to get username from database: {}", e);

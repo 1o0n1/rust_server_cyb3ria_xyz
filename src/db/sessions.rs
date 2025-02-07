@@ -9,7 +9,7 @@ use std::result::Result;
 use uuid::Uuid;
 
 // Обертка для DateTime<Utc>, чтобы обойти "orphan rule"
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct Timestamp(DateTime<Utc>);
 
 impl ToSql for Timestamp {
@@ -20,6 +20,17 @@ impl ToSql for Timestamp {
         let timestamp = self.0.timestamp();
         (timestamp).to_sql(_type, out).map_err(|e| e.into())
     }
+}
+
+impl<'a> tokio_postgres::types::FromSql<'a> for Timestamp {
+    fn from_sql(ty: &Type, raw: &'a [u8]) -> Result<Self, Box<dyn StdError + Sync + Send>> {
+        let timestamp: i64 = tokio_postgres::types::FromSql::from_sql(ty, raw)?;
+        let datetime = DateTime::<Utc>::from_timestamp(timestamp, 0)
+            .ok_or("invalid timestamp")?;
+        Ok(Timestamp(datetime))
+    }
+
+    tokio_postgres::types::accepts!(TIMESTAMP, TIMESTAMPTZ);
 }
 
 // Функция для подключения к базе данных
@@ -65,19 +76,8 @@ pub async fn find_session_by_session_id(session_id: &Uuid) -> Result<Option<Sess
         .await?;
 
     if let Some(row) = row {
-        let expires_at: Option<i64> = row.get(3);
-        let expires_at_datetime: Option<DateTime<Utc>> = match expires_at {
-            Some(ts) => {
-                match DateTime::<Utc>::from_timestamp(ts, 0) {
-                    Some(dt) => Some(dt),
-                    None => {
-                        error!("Invalid timestamp: {}", ts);
-                        None // Or handle the error as you see fit, perhaps return an error
-                    }
-                }
-            }
-            None => None,
-        };
+        let expires_at: Option<Timestamp> = row.get(3); // Получаем expires_at как Option<Timestamp>
+        let expires_at_datetime: Option<DateTime<Utc>> = expires_at.map(|ts| ts.0); // Преобразуем Timestamp в DateTime<Utc>
 
         let session = Session {
             session_id: row.get(0),

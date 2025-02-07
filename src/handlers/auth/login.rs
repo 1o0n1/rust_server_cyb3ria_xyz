@@ -1,4 +1,5 @@
-use warp::{Filter, Rejection, http::StatusCode};
+use warp::Reply;
+use warp::{Filter, Rejection, http::StatusCode, reply::Response};
 use crate::models::{Device, Session};
 use bcrypt::verify;
 use uuid::Uuid;
@@ -8,11 +9,11 @@ use crate::db::users::find_user_by_username;
 use crate::db::devices::save_device_to_db;
 use crate::db::sessions::save_session_to_db;
 use crate::db::devices::find_device_by_ip_mac;
-use crate::handlers::auth::{map_validation_errors, LoginData, LoginResponse};
+use crate::handlers::auth::{map_validation_errors, LoginData, LoginResponse, LoginSuccessResponse};
 use validator::Validate;
 use chrono::{Utc, Duration};
 
-pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<impl warp::Reply, Rejection> {
+pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<Response, Rejection> {
     debug!("Received login request: {:?}", login);
 
     // Валидация данных
@@ -23,7 +24,7 @@ pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<im
         return Ok(warp::reply::with_status(
             warp::reply::json(&response),
             StatusCode::BAD_REQUEST,
-        ));
+        ).into_response());
     }
 
     let user = match find_user_by_username(&login.username).await {
@@ -34,17 +35,29 @@ pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<im
             return Ok(warp::reply::with_status(
                 warp::reply::json(&response),
                 StatusCode::UNAUTHORIZED,
-            ));
+            ).into_response());
         }
     };
 
-    if !verify(&login.password, &user.password_hash).unwrap_or(false) {
-        error!("Invalid password.");
-        let response = LoginResponse { message: "Invalid password.".to_string(), username: "".to_string() };
-        return Ok(warp::reply::with_status(
-            warp::reply::json(&response),
-            StatusCode::UNAUTHORIZED,
-        ));
+    match verify(&login.password, &user.password_hash) {
+        Ok(valid) => {
+            if !valid {
+                error!("Invalid password.");
+                let response = LoginResponse { message: "Invalid password.".to_string(), username: "".to_string() };
+                return Ok(warp::reply::with_status(
+                    warp::reply::json(&response),
+                    StatusCode::UNAUTHORIZED,
+                ).into_response());
+            }
+        }
+        Err(e) => {
+            error!("Failed to verify password: {}", e);
+            let response = LoginResponse { message: "Failed to verify password.".to_string(), username: "".to_string() };
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&response),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ).into_response());
+        }
     }
 
     let device = match find_device_by_ip_mac(&peer_addr.ip().to_string()).await {
@@ -66,7 +79,7 @@ pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<im
             return Ok(warp::reply::with_status(
                 warp::reply::json(&response),
                 StatusCode::INTERNAL_SERVER_ERROR,
-            ));
+            ).into_response());
         }
     };
     
@@ -82,18 +95,19 @@ pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<im
     }
 
     info!("User logged in successfully: {}", login.username);
-    let response = LoginResponse {
+    let response = LoginSuccessResponse {
         message: "User logged in successfully.".to_string(),
-        username: login.username.to_string()
+        username: login.username.to_string(),
+        session_id: session.session_id,
     };
     
     Ok(warp::reply::with_status(
         warp::reply::json(&response),
         StatusCode::OK,
-    ))
+    ).into_response())
 }
 
-pub fn login_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+pub fn login_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {
     warp::path("api")
         .and(warp::path("login"))
         .and(warp::body::json())

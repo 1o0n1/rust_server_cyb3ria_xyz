@@ -17,8 +17,8 @@ const messages = document.getElementById('messages');
 const form = document.getElementById('form');
 const input = document.getElementById('name');
 
-const urlParams = new URLSearchParams(window.location.search);
-const username = urlParams.get('username');
+//const urlParams = new URLSearchParams(window.location.search);
+//const username = urlParams.get('username');
 
 let ws = null;
 
@@ -27,7 +27,13 @@ function connectWebSocket() {
       ws.close();
       console.log('WebSocket connection closed');
    }
-    ws = new WebSocket(`wss://cyb3ria.xyz/api/ws?username=${encodeURIComponent(username)}`);
+
+    const sessionId = localStorage.getItem('session_id'); // Получаем session_id из localStorage
+    if (!sessionId) {
+        console.error('Session ID not found.');
+        return; // Прерываем подключение, если нет session_id
+    }
+    ws = new WebSocket(`wss://cyb3ria.xyz/api/ws?session_id=${encodeURIComponent(sessionId)}`);
 
     ws.onopen = () => {
         console.log('WebSocket connection established');
@@ -58,8 +64,13 @@ if (messages) {
     connectWebSocket();
     form.addEventListener('submit', event => {
         event.preventDefault();
-        const message = {
-            username: username,
+        //const message = {
+         //   username: username,
+         //   message: input.value,
+         //   ip: ipAddress,
+         //   mac: macAddress
+       // };
+       const message = {
             message: input.value,
             ip: ipAddress,
             mac: macAddress

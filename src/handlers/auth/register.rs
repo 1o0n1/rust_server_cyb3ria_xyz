@@ -1,4 +1,5 @@
-use warp::{Filter, Rejection, http::StatusCode};
+use warp::Reply;
+use warp::{Filter, Rejection, http::StatusCode, reply::Response};
 use crate::models::User;
 use bcrypt::{hash, DEFAULT_COST};
 use uuid::Uuid;
@@ -9,7 +10,7 @@ use validator::Validate;
 use crate::handlers::auth::{map_validation_errors, RegistrationData, RegistrationResponse};
 
 
-pub async fn register_handler(registration: RegistrationData, _peer_addr: SocketAddr) -> Result<impl warp::Reply, Rejection> {
+pub async fn register_handler(registration: RegistrationData, _peer_addr: SocketAddr) -> Result<Response, Rejection> {
     debug!("Received registration request: {:?}", registration);
 
     // Валидация данных
@@ -20,7 +21,7 @@ pub async fn register_handler(registration: RegistrationData, _peer_addr: Socket
          return Ok(warp::reply::with_status(
              warp::reply::json(&response),
              StatusCode::BAD_REQUEST,
-        ));
+        ).into_response());
      }
     
 
@@ -30,7 +31,7 @@ pub async fn register_handler(registration: RegistrationData, _peer_addr: Socket
         return Ok(warp::reply::with_status(
             warp::reply::json(&response),
             StatusCode::BAD_REQUEST,
-        ));
+        ).into_response());
     }
 
     let password_hash = match hash(registration.password, DEFAULT_COST) {
@@ -41,7 +42,7 @@ pub async fn register_handler(registration: RegistrationData, _peer_addr: Socket
             return Ok(warp::reply::with_status(
                 warp::reply::json(&response),
                 StatusCode::INTERNAL_SERVER_ERROR,
-            ));
+            ).into_response());
         }
     };
 
@@ -61,7 +62,7 @@ pub async fn register_handler(registration: RegistrationData, _peer_addr: Socket
             Ok(warp::reply::with_status(
                 warp::reply::json(&response),
                 StatusCode::OK,
-            ))
+            ).into_response())
         },
         Err(e) => {
             error!("Failed to save user to database: {}", e);
@@ -69,12 +70,12 @@ pub async fn register_handler(registration: RegistrationData, _peer_addr: Socket
             Ok(warp::reply::with_status(
                 warp::reply::json(&response),
                 StatusCode::INTERNAL_SERVER_ERROR,
-            ))
+            ).into_response())
         }
     }
 }
 
-pub fn register_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+pub fn register_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {
     warp::path("api")
         .and(warp::path("register"))
         .and(warp::body::json())

@@ -3,6 +3,7 @@ pub mod login;
 use validator::{Validate, ValidationErrors, ValidationError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct RegistrationData {
@@ -29,6 +30,13 @@ pub struct LoginData {
 pub struct LoginResponse {
     pub message: String,
     pub username: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct LoginSuccessResponse {
+    pub message: String,
+    pub username: String,
+    pub session_id: Uuid,
 }
 
 impl Validate for RegistrationData {

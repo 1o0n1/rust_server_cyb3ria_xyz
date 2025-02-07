@@ -67,8 +67,9 @@
             })
             .then(data => {
                console.log('Success:', data);
+               localStorage.setItem('session_id', data.session_id); // Сохраняем session_id в localStorage
                 if(data.username) {
-                    window.location.href = `/static/chat.html?username=${encodeURIComponent(data.username)}`;
+                    window.location.href = `/static/chat.html`;
                 } else {
                     document.getElementById('result').textContent = data.message;
                 }

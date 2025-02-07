@@ -1,8 +1,7 @@
-use tokio_postgres::NoTls;
+use std::net::IpAddr;
 use std::error::Error as StdError;
 use log::{error, debug};
 use crate::models::Device;
-use std::net::IpAddr;
 use crate::db::sessions::connect_to_db; // Импортируем функцию
 
 /// Сохраняет устройство в базу данных
@@ -22,6 +21,7 @@ pub async fn save_device_to_db(device: Device) -> Result<(), Box<dyn StdError + 
 
 /// Ищет устройство по IP-адресу
 pub async fn find_device_by_ip_mac(ip_address: &str) -> Result<Option<Device>, Box<dyn StdError + Send + Sync>> {
+    use std::net::IpAddr;
     let client = connect_to_db().await?;
 
     debug!("Finding device by IP: {}", ip_address);

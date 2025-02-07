@@ -1,4 +1,5 @@
-use warp::{Filter, Rejection, http::StatusCode};
+use warp::Reply;
+use warp::{Filter, Rejection, http::StatusCode, reply::Response};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use futures_util::StreamExt;
@@ -14,7 +15,7 @@ struct UploadResponse {
     filename: Option<String>,
 }
 
-pub async fn upload_handler(mut form: warp::multipart::FormData) -> Result<impl warp::Reply, Rejection> {
+pub async fn upload_handler(mut form: warp::multipart::FormData) -> Result<Response, Rejection> {
     debug!("Received file upload request");
     
     while let Some(item) = form.next().await {
@@ -26,7 +27,7 @@ pub async fn upload_handler(mut form: warp::multipart::FormData) -> Result<impl 
                 return Ok(warp::reply::with_status(
                     warp::reply::json(&response),
                    StatusCode::BAD_REQUEST,
-               ));
+               ).into_response());
             }
         };
 
@@ -39,7 +40,7 @@ pub async fn upload_handler(mut form: warp::multipart::FormData) -> Result<impl 
                      return Ok(warp::reply::with_status(
                             warp::reply::json(&response),
                             StatusCode::BAD_REQUEST,
-                     ));
+                     ).into_response());
                   }
            };
            let file_path = Path::new("/var/www/rust_server_cyb3ria_xyz/uploaded").join(&file_name); // Использование абсолютного пути
@@ -53,7 +54,7 @@ pub async fn upload_handler(mut form: warp::multipart::FormData) -> Result<impl 
                     return Ok(warp::reply::with_status(
                         warp::reply::json(&response),
                         StatusCode::INTERNAL_SERVER_ERROR,
-                    ));
+                    ).into_response());
                   }
             };
             
@@ -66,7 +67,7 @@ pub async fn upload_handler(mut form: warp::multipart::FormData) -> Result<impl 
                         return Ok(warp::reply::with_status(
                             warp::reply::json(&response),
                             StatusCode::INTERNAL_SERVER_ERROR,
-                        ));
+                        ).into_response());
                     }
                 };
                
@@ -76,7 +77,7 @@ pub async fn upload_handler(mut form: warp::multipart::FormData) -> Result<impl 
                     return Ok(warp::reply::with_status(
                         warp::reply::json(&response),
                         StatusCode::INTERNAL_SERVER_ERROR,
-                    ));
+                    ).into_response());
                 }
             }
              info!("File saved successfully: {}", file_path_str);
@@ -84,7 +85,7 @@ pub async fn upload_handler(mut form: warp::multipart::FormData) -> Result<impl 
             return Ok(warp::reply::with_status(
                 warp::reply::json(&response),
                 StatusCode::OK,
-           ));
+           ).into_response());
         }
     }
     
@@ -92,10 +93,10 @@ pub async fn upload_handler(mut form: warp::multipart::FormData) -> Result<impl 
         Ok(warp::reply::with_status(
             warp::reply::json(&response),
            StatusCode::BAD_REQUEST,
-        ))
+        ).into_response())
 }
 
-pub fn upload_route() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+pub fn upload_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {
     warp::path("api")
         .and(warp::path("upload"))
         .and(warp::multipart::form())
