@@ -1,5 +1,6 @@
 use warp::Reply;
 use warp::{Filter, Rejection, http::StatusCode, reply::Response};
+use warp::cookie::cookie; // Import cookie
 use crate::models::{Device, Session};
 use bcrypt::verify;
 use uuid::Uuid;
@@ -82,9 +83,10 @@ pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<Re
             ).into_response());
         }
     };
-    
+
+    let session_id = Uuid::new_v4(); // Generate session ID
     let session = Session {
-        session_id: Uuid::new_v4(),
+        session_id,
         user_uuid: user.user_uuid,
         device_id: device.device_id,
         expires_at: Some(Utc::now() + Duration::hours(1)),
@@ -100,11 +102,19 @@ pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<Re
         username: login.username.to_string(),
         session_id: session.session_id,
     };
-    
-    Ok(warp::reply::with_status(
+
+    let mut resp = warp::reply::with_status(
         warp::reply::json(&response),
         StatusCode::OK,
-    ).into_response())
+    ).into_response();
+    
+    // **Add the following code:**
+    resp.headers_mut().insert(
+        "Set-Cookie",
+        format!("session_id={}; HttpOnly; Secure; SameSite=Strict; Path=/", session_id).parse().unwrap()
+    );
+
+    Ok(resp)
 }
 
 pub fn login_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {

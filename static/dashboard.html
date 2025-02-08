@@ -8,7 +8,32 @@
 </head>
 <body>
     <h1>Dashboard</h1>
-    <a href="/static/chat.html">Go to Chat</a>
-    <a href="/static/upload.html">Go to Upload</a>
+    <nav>
+        <a href="/static/chat.html">Chat</a>
+        <a href="/static/profile.html">Profile</a>
+        <a href="/static/upload.html">Upload</a>
+        <button id="logoutBtn">Logout</button>
+    </nav>
+    <script>
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            fetch('/api/logout', {
+                method: 'POST', // Или GET, в зависимости от реализации бэкенда
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = '/static/choice.html'; // Перенаправляем на страницу логина
+                } else {
+                    alert('Logout failed.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Logout failed.');
+            });
+        });
+    </script>
 </body>
 </html>

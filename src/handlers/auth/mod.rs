@@ -1,5 +1,7 @@
 pub mod register;
 pub mod login;
+pub mod logout;
+
 use validator::{Validate, ValidationErrors, ValidationError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;

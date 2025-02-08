@@ -90,3 +90,25 @@ pub async fn find_session_by_session_id(session_id: &Uuid) -> Result<Option<Sess
         Ok(None)
     }
 }
+/// Удаляет сессию из базы данных по session_id
+pub async fn delete_session_by_session_id(session_id: &Uuid) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let (client, connection) =
+        tokio_postgres::connect("host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db", NoTls)
+            .await?;
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            error!("connection error: {}", e);
+        }
+    });
+
+    debug!("Deleting session from database with session_id: {}", session_id);
+
+    client.execute(
+        "DELETE FROM sessions WHERE session_id = $1",
+        &[&session_id],
+    )
+    .await?;
+
+    Ok(())
+}

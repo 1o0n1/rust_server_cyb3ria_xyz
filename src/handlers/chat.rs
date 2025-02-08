@@ -6,14 +6,11 @@ use tokio::sync::broadcast;
 use tokio::sync::Mutex as TokioMutex;
 use log::{info, error, debug};
 use serde::{Deserialize, Serialize};
-use crate::db::messages::{
-    save_message_to_db
-};
+use crate::db::messages::save_message_to_db;
 use crate::db::send_message_history;
 use crate::utils::generate_client_id;
 use tokio::time::{Duration as TokioDuration, interval};
 use uuid::Uuid;
-use crate::db::sessions::find_session_by_session_id;
 
 type Clients = Arc<Mutex<std::collections::HashMap<String, usize>>>;
 type Sender = Arc<Mutex<broadcast::Sender<String>>>;
@@ -22,43 +19,35 @@ type Sender = Arc<Mutex<broadcast::Sender<String>>>;
 struct ClientMessage {
     message: String,
     ip: String,
-    mac: String
+    mac: String,
 }
 
-pub async fn client_connection(ws: WebSocket, clients: Clients, sender: Sender, session_id: Option<String>) {
+pub async fn client_connection(
+    ws: WebSocket,
+    clients: Clients,
+    sender: Sender,
+    user_uuid: Option<String>,
+) {
     let (client_ws_sender, mut client_ws_rcv) = ws.split();
     let client_ws_sender = Arc::new(TokioMutex::new(client_ws_sender));
 
-    let session_id = match session_id {
-        Some(session_id) => session_id,
+    let user_uuid = match user_uuid {
+        Some(user_uuid) => user_uuid,
         None => {
-            error!("Session ID is missing.");
+            error!("User ID is missing.");
             return;
         }
     };
 
-    let session_uuid = match Uuid::parse_str(&session_id) {
+    let user_uuid_parsed = match Uuid::parse_str(&user_uuid) {
         Ok(uuid) => uuid,
         Err(e) => {
-            error!("Failed to parse session ID: {}", e);
+            error!("Failed to parse user ID: {}", e);
             return;
         }
     };
 
-    let session = match find_session_by_session_id(&session_uuid).await {
-        Ok(Some(session)) => session,
-        Ok(None) => {
-            error!("Session not found.");
-            return;
-        }
-        Err(e) => {
-            error!("Failed to find session: {}", e);
-            return;
-        }
-    };
-
-    let user_uuid = session.user_uuid;
-    let user = match crate::db::users::find_user_by_uuid(&user_uuid).await {
+    let user = match crate::db::users::find_user_by_uuid(&user_uuid_parsed).await {
         Ok(user) => user,
         Err(e) => {
             error!("Failed to find user by UUID: {}", e);
@@ -76,10 +65,11 @@ pub async fn client_connection(ws: WebSocket, clients: Clients, sender: Sender, 
 
     info!("New client connected with ID: {}, username: {}", client_id, username);
 
+    // Отправляем историю сообщений
     if let Err(e) = send_message_history(client_ws_sender.clone()).await {
         error!("Failed to send message history: {}", e);
     }
-    
+
     let mut rx = sender.lock().unwrap().subscribe();
     let username_clone = username.clone();
     let clients_clone = Arc::clone(&clients);
@@ -88,7 +78,6 @@ pub async fn client_connection(ws: WebSocket, clients: Clients, sender: Sender, 
     let ping_interval = TokioDuration::from_secs(30);
     let mut ping_timer = interval(ping_interval);
 
-    // Клонируем Arc для использования в асинхронной задаче
     let client_ws_sender_task = Arc::clone(&client_ws_sender);
 
     tokio::spawn(async move {
@@ -116,27 +105,34 @@ pub async fn client_connection(ws: WebSocket, clients: Clients, sender: Sender, 
             }
         }
     });
-    
+
     while let Some(result) = client_ws_rcv.next().await {
         let msg = if let Ok(msg) = result {
             if msg.is_text() {
                 let msg_str = msg.to_str().unwrap().to_owned();
                 debug!("Received raw message: {}", msg_str);
-                let client_message: ClientMessage = match serde_json::from_str(&msg_str) {
-                    Ok(msg) => msg,
+
+                match serde_json::from_str::<ClientMessage>(&msg_str) {
+                    Ok(client_message) => {
+                        debug!(
+                            "Received message from client {}: {}",
+                            username, client_message.message
+                        );
+
+                        if let Err(e) =
+                            save_message_to_db(&client_message.message, user_uuid_parsed).await
+                        {
+                            error!("Failed to save message to database: {}", e);
+                        }
+
+                        let formatted_message = format!("{}: {}", username, client_message.message);
+                        formatted_message
+                    }
                     Err(e) => {
                         error!("Failed to deserialize message: {}", e);
                         continue;
                     }
-                };
-                debug!("Received message from client {}: {}", username, client_message.message);
-
-                if let Err(e) = save_message_to_db(&client_message.message, user_uuid).await {
-                    error!("Failed to save message to database: {}", e);
                 }
-
-                let formatted_message = format!("{}: {}", username, client_message.message);
-                formatted_message
             } else if msg.is_close() {
                 info!("Client disconnected with ID: {}, username: {}", client_id, username);
                 let mut clients = clients.lock().unwrap();

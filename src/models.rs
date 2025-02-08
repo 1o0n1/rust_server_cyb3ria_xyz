@@ -24,3 +24,17 @@ pub struct Session {
     pub device_id: Uuid,
     pub expires_at: Option<DateTime<Utc>>,
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Profile {
+    pub user_uuid: Uuid,
+    pub bio: Option<String>,
+    pub avatar: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct ProfileResponse {
+    pub username: String,
+    pub bio: Option<String>,
+    pub avatar: Option<String>,
+}

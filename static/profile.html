@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <h1>Profile</h1>
+    <nav>
+        <a href="/static/chat.html">Chat</a>
+        <a href="/static/dashboard.html">Dashboard</a>
+        <a href="/static/upload.html">Upload</a>
+        <button id="logoutBtn">Logout</button>
+    </nav>
+
+    <div id="profileData">
+      <p>Username: <span id="username"></span></p>
+      <p>Bio: <span id="bio"></span></p>
+      <p>Avatar: <span id="avatar"></span></p>
+
+    </div>
+
+    <script>
+       document.addEventListener('DOMContentLoaded', function() {
+          fetch('/api/profile', {
+              method: 'GET',
+              headers: {
+                  'Content-Type': 'application/json'
+              }
+          })
+          .then(response => {
+              if (!response.ok) {
+                  throw new Error('Network response was not ok');
+              }
+              return response.json();
+          })
+          .then(data => {
+              document.getElementById('username').textContent = data.username;
+              document.getElementById('bio').textContent = data.bio || 'No bio provided.';
+              document.getElementById('avatar').textContent = data.avatar || 'No avatar provided.';
+          })
+          .catch(error => {
+              console.error('Error:', error);
+              document.getElementById('profileData').textContent = 'Failed to load profile.';
+          });
+         document.getElementById('logoutBtn').addEventListener('click', function() {
+             fetch('/api/logout', {
+                method: 'POST', // Или GET, в зависимости от реализации бэкенда
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+             })
+             .then(response => {
+                if (response.ok) {
+                    window.location.href = '/static/choice.html'; // Перенаправляем на страницу логина
+                } else {
+                    alert('Logout failed.');
+                }
+              })
+             .catch(error => {
+                console.error('Error:', error);
+                alert('Logout failed.');
+             });
+          });
+       });
+    </script>
+</body>
+</html>
