@@ -99,3 +99,42 @@ a {
 a:hover {
     text-decoration: underline;
 }
+
+.main-menu {
+    position: absolute; /* Добавляем это */
+    top: 10px;
+    left: 10px;
+    background-color: #333;
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 1000; /* Чтобы меню было поверх всего */
+}
+
+.main-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.main-menu li {
+    margin-bottom: 5px;
+}
+
+.main-menu a, .main-menu button {
+    color: #fff;
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    display: block;
+}
+
+.main-menu a:hover, .main-menu button:hover {
+    background-color: #555;
+}
+
+.main-menu button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+}

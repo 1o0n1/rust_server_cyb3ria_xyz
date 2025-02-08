@@ -79,3 +79,23 @@ if (messages) {
         input.value = '';
     });
 }
+
+document.getElementById('logoutBtn').addEventListener('click', function() {
+    fetch('/api/logout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+    })
+    .then(response => {
+        if (response.ok) {
+            window.location.href = '/static/choice.html';
+        } else {
+            alert('Logout failed.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Logout failed.');
+    });
+});
