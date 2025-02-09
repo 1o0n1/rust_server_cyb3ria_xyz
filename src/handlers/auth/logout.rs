@@ -27,7 +27,7 @@ pub async fn logout_handler(user_uuid: Uuid) -> Result<Response, Rejection> {
     // Очистить куки
     resp.headers_mut().insert(
         "Set-Cookie",
-        format!("session_id=; Max-Age=0; Path=/; SameSite=Strict")
+        "session_id=; Max-Age=0; Path=/; SameSite=Strict".to_string()
             .parse()
             .unwrap(),
     );

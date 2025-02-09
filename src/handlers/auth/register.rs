@@ -58,7 +58,7 @@ pub async fn register_handler(
 
     let user = User {
         username: registration.username,
-        password_hash: password_hash,
+        password_hash,
         invitation_code: registration.invitation_code,
         user_uuid,
     };

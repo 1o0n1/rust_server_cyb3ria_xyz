@@ -127,11 +127,7 @@ fn map_validation_errors(errors: ValidationErrors) -> String {
         for error in field_errors {
             result.push_str(&format!(
                 "{} ",
-                error
-                    .message
-                    .as_ref()
-                    .unwrap_or(&Cow::from("Invalid value"))
-                    .to_string()
+                error.message.as_ref().unwrap_or(&Cow::from("Invalid value"))
             ));
         }
     }

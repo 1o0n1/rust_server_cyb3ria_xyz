@@ -1,15 +1,15 @@
 // src/handlers/upload.rs
-use crate::db::files::save_file_info;
-use bytes::Buf;
-use futures_util::StreamExt;
-use log::{debug, error, info};
-use serde::{Deserialize, Serialize};
-use std::path::Path;
+use warp::Reply;
+use warp::{Filter, Rejection, http::StatusCode, reply::Response};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use futures_util::StreamExt;
+use std::path::Path;
+use serde::{Deserialize, Serialize};
+use log::{info, error, debug};
+use bytes::Buf;
 use uuid::Uuid;
-use warp::Reply;
-use warp::{http::StatusCode, reply::Response, Filter, Rejection};
+use crate::db::files::save_file_info;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 struct UploadResponse {
@@ -52,7 +52,8 @@ pub async fn upload_handler(
                     .into_response());
                 }
             };
-            let file_path = Path::new("/var/www/rust_server_cyb3ria_xyz/uploaded").join(&file_name); // Использование абсолютного пути
+            let file_path =
+                Path::new("/var/www/rust_server_cyb3ria_xyz/uploaded").join(&file_name); // Использование абсолютного пути
             let file_path_str = file_path.to_str().unwrap();
 
             let mut file = match File::create(&file_path).await {
@@ -109,20 +110,22 @@ pub async fn upload_handler(
             let response = UploadResponse {
                 message: "Uploaded succesfully!".to_string(),
             };
-            return Ok(
-                warp::reply::with_status(warp::reply::json(&response), StatusCode::OK)
-                    .into_response(),
-            );
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&response),
+                StatusCode::OK,
+            )
+            .into_response());
         }
     }
 
     let response = UploadResponse {
         message: "No file found in the form data".to_string(),
     };
-    return Ok(
+    Ok(
         warp::reply::with_status(warp::reply::json(&response), StatusCode::BAD_REQUEST)
             .into_response(),
-    );
+    )
+
 }
 
 pub fn upload_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {
@@ -130,10 +133,8 @@ pub fn upload_route() -> impl Filter<Extract = (Response,), Error = Rejection> +
         .and(warp::path("upload"))
         .and(warp::multipart::form())
         .and(crate::middleware::auth::with_auth()) // Add auth middleware
-        .and_then(
-            |form: warp::multipart::FormData, user_uuid: Uuid| async move {
-                // Get user_uuid
-                upload_handler(form, user_uuid).await // Pass user_uuid
-            },
-        )
+        .and_then(|form: warp::multipart::FormData, user_uuid: Uuid| async move {
+            // Get user_uuid
+            upload_handler(form, user_uuid).await // Pass user_uuid
+        })
 }

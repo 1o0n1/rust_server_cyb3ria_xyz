@@ -22,7 +22,7 @@ impl ToSql for Timestamp {
         out: &mut BytesMut,
     ) -> Result<tokio_postgres::types::IsNull, Box<dyn StdError + Sync + Send>> {
         let timestamp = self.0.timestamp();
-        (timestamp).to_sql(_type, out).map_err(|e| e.into())
+        (timestamp).to_sql(_type, out)
     }
 }
 

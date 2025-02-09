@@ -24,17 +24,17 @@ impl ToSql for Timestamp {
         out: &mut BytesMut,
     ) -> Result<tokio_postgres::types::IsNull, Box<dyn StdError + Sync + Send>> {
         let timestamp = self.0.timestamp();
-        (timestamp).to_sql(_type, out).map_err(|e| e.into())
+        (timestamp).to_sql(_type, out) // Убрали .map_err
     }
 }
 
 /// Экранирует строку для безопасного отображения в HTML
 fn escape_html(text: &str) -> String {
-    text.replace("&", "&")
-        .replace("<", "<")
-        .replace(">", ">")
-        .replace("\"", "&quot;")
-        .replace("'", "'")
+    text.replace("&", "&amp")
+        .replace("<", "&lt")
+        .replace(">", "&gt")
+        .replace("\"", "&quot")
+        .replace("'", "&apos;")
 }
 
 /// Сохраняет сообщение в базу данных
@@ -43,7 +43,7 @@ pub async fn save_message_to_db(
     user_uuid: Uuid,
 ) -> Result<(), Box<dyn StdError + Send + Sync>> {
     let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=cyb3ria password=!Abs123 dbname='cyb3ria_db'",
+        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
         tokio_postgres::NoTls,
     )
     .await?;
@@ -69,7 +69,7 @@ pub async fn save_message_to_db(
     Ok(())
 }
 
-/// Отправляет историю сообщений клиенту
+ /// Отправляет историю сообщений клиенту
 pub async fn send_message_history(
     client_ws_sender: Arc<TokioMutex<futures_util::stream::SplitSink<WebSocket, Message>>>,
 ) -> Result<(), Box<dyn StdError + Send + Sync>> {
@@ -118,11 +118,7 @@ pub async fn send_message_history(
             None => format!("Unknown User: {}", message), // Обработка NULL значения
         };
 
-        if let Err(e) = client_ws_sender
-            .lock()
-            .await
-            .send(Message::text(formatted_message))
-            .await
+        if let Err(e) = client_ws_sender.lock().await.send(Message::text(formatted_message)).await
         {
             error!("Failed to send message: {}", e);
         }

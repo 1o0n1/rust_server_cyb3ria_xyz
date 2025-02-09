@@ -1,7 +1,7 @@
 // src/db/files.rs
 use crate::models::FileInfo;
 use chrono::{DateTime, Utc}; // Добавляем импорт
-use log::{debug, error};
+use log::debug;
 use std::error::Error as StdError;
 use tokio_postgres::NoTls;
 use uuid::Uuid;
