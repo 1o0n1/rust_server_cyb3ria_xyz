@@ -1,23 +1,13 @@
 use crate::models::User;
 use log::debug;
 use std::error::Error as StdError;
-use tokio_postgres::NoTls;
 use uuid::Uuid;
+use crate::db::connect_to_db;
 
 /// Сохраняет пользователя в базу данных
 pub async fn save_user_to_db(user: User) -> Result<(), Box<dyn StdError + Send + Sync>> {
-    let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
-        NoTls,
-    )
-    .await
-    .expect("Failed to connect to database");
+    let client = connect_to_db().await?;  
 
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
-        }
-    });
 
     debug!("Saving user to database: {}", user.username);
 
@@ -34,18 +24,7 @@ pub async fn save_user_to_db(user: User) -> Result<(), Box<dyn StdError + Send +
 pub async fn find_user_by_username(
     username: &str,
 ) -> Result<User, Box<dyn StdError + Send + Sync>> {
-    let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
-        NoTls,
-    )
-    .await
-    .expect("Failed to connect to database");
-
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
-        }
-    });
+    let client = connect_to_db().await?;  
 
     debug!("Finding user in database by username: {}", username);
 
@@ -65,18 +44,7 @@ pub async fn find_user_by_username(
 
 /// Ищет пользователя по UUID
 pub async fn find_user_by_uuid(user_uuid: &Uuid) -> Result<User, Box<dyn StdError + Send + Sync>> {
-    let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
-        NoTls,
-    )
-    .await
-    .expect("Failed to connect to database");
-
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
-        }
-    });
+    let client = connect_to_db().await?;  
 
     debug!("Finding user in database by user_uuid: {}", user_uuid);
 

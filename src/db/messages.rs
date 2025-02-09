@@ -9,6 +9,8 @@ use tokio_postgres::types::ToSql;
 use tokio_postgres::types::Type;
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
+use crate::db::connect_to_db;
+
 
 // Обертка для DateTime<Utc>, чтобы обойти "orphan rule"
 #[derive(Debug, Copy, Clone)]
@@ -42,17 +44,9 @@ pub async fn save_message_to_db(
     message: &str,
     user_uuid: Uuid,
 ) -> Result<(), Box<dyn StdError + Send + Sync>> {
-    let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
-        tokio_postgres::NoTls,
-    )
-    .await?;
+    let client = connect_to_db().await?;
 
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
-        }
-    });
+    
 
     debug!(
         "Saving message to database: {}, from user: {}",
@@ -73,17 +67,9 @@ pub async fn save_message_to_db(
 pub async fn send_message_history(
     client_ws_sender: Arc<TokioMutex<futures_util::stream::SplitSink<WebSocket, Message>>>,
 ) -> Result<(), Box<dyn StdError + Send + Sync>> {
-    let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
-        tokio_postgres::NoTls,
-    )
-    .await?;
+    let client = connect_to_db().await?;
 
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
-        }
-    });
+    
 
     let rows = client
         .query(

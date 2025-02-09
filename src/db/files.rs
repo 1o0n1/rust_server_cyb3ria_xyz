@@ -3,25 +3,17 @@ use crate::models::FileInfo;
 use chrono::{DateTime, Utc}; // Добавляем импорт
 use log::debug;
 use std::error::Error as StdError;
-use tokio_postgres::NoTls;
 use uuid::Uuid;
+use crate::db::connect_to_db;
 
 /// Сохраняет информацию о файле в базу данных
 pub async fn save_file_info(
     filename: &str,
     user_uuid: Uuid,
 ) -> Result<(), Box<dyn StdError + Send + Sync>> {
-    let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
-        NoTls,
-    )
-    .await?;
+    let client = connect_to_db().await?;
 
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
-        }
-    });
+    
 
     debug!(
         "Saving file info to database: filename={}, user_uuid={}",
@@ -43,17 +35,9 @@ pub async fn save_file_info(
 pub async fn get_files_by_user_uuid(
     user_uuid: Uuid,
 ) -> Result<Vec<FileInfo>, Box<dyn StdError + Send + Sync>> {
-    let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
-        NoTls,
-    )
-    .await?;
+    let client = connect_to_db().await?;
 
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
-        }
-    });
+
 
     debug!("Getting files for user_uuid: {}", user_uuid);
 

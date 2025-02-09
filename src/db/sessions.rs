@@ -1,12 +1,13 @@
+use crate::db::connect_to_db;
 use crate::models::Session;
 use bytes::BytesMut;
 use chrono::{DateTime, Utc};
-use log::{debug, error};
+use log::debug;
 use std::error::Error as StdError;
 use std::result::Result;
 use tokio_postgres::types::{ToSql, Type};
-use tokio_postgres::NoTls;
 use uuid::Uuid;
+
 
 // Обертка для DateTime<Utc>, чтобы обойти "orphan rule"
 #[derive(Debug, Copy, Clone)]
@@ -36,22 +37,7 @@ impl<'a> tokio_postgres::types::FromSql<'a> for Timestamp {
     tokio_postgres::types::accepts!(TIMESTAMP, TIMESTAMPTZ);
 }
 
-// Функция для подключения к базе данных
-pub async fn connect_to_db() -> Result<tokio_postgres::Client, Box<dyn StdError + Send + Sync>> {
-    let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
-        NoTls,
-    )
-    .await?;
 
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            error!("connection error: {}", e);
-        }
-    });
-
-    Ok(client)
-}
 
 /// Сохраняет сессию в базу данных
 pub async fn save_session_to_db(session: Session) -> Result<(), Box<dyn StdError + Send + Sync>> {
@@ -101,17 +87,8 @@ pub async fn find_session_by_session_id(
 pub async fn delete_session_by_session_id(
     session_id: &Uuid,
 ) -> Result<(), Box<dyn StdError + Send + Sync>> {
-    let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
-        NoTls,
-    )
-    .await?;
+    let client = connect_to_db().await?;  
 
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            error!("connection error: {}", e);
-        }
-    });
 
     debug!(
         "Deleting session from database with session_id: {}",

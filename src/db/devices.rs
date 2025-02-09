@@ -1,8 +1,8 @@
-use crate::db::sessions::connect_to_db;
-use crate::models::Device;
 use log::{debug, error};
 use std::error::Error as StdError;
 use std::net::IpAddr; // Импортируем функцию
+use crate::db::connect_to_db; // Правильный импорт
+use crate::models::Device; // Импортируем функцию
 
 /// Сохраняет устройство в базу данных
 pub async fn save_device_to_db(device: Device) -> Result<(), Box<dyn StdError + Send + Sync>> {
