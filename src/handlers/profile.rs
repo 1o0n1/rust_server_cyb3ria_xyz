@@ -1,15 +1,14 @@
 // src/handlers/profile.rs
 use warp::Reply;
 use warp::{Filter, Rejection, http::StatusCode, reply::Response};
-use crate::models::{ProfileResponse, FileInfo};
+use crate::models::{ProfileResponse};
 use crate::db::users::find_user_by_uuid;
 use crate::db::profiles::{get_profile_by_user_uuid, create_profile};
 use uuid::Uuid;
-use log::{info, error, debug};
-use serde::{Serialize, Deserialize};
-use crate::db::files::get_files_by_user_uuid;
-use chrono::{DateTime, Utc};
-use crate::middleware;
+use log::{error, debug};
+
+
+
 
 
 

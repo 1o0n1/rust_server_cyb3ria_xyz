@@ -1,7 +1,7 @@
 // src/db/profiles.rs
 use tokio_postgres::NoTls;
 use std::error::Error as StdError;
-use log::{debug, error};
+use log::debug;
 use crate::models::Profile;
 use uuid::Uuid;
 

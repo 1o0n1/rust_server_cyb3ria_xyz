@@ -1,11 +1,9 @@
 // src/handlers/files.rs
 use warp::{Filter, Rejection, http::StatusCode, reply::Response, reply::Json};
 use uuid::Uuid;
-use log::{info, error, debug};
-use serde::{Serialize, Deserialize};
+use log::{error, debug};
 use crate::db::files::get_files_by_user_uuid;
 use crate::models::FileInfo;
-use crate::middleware;
 pub async fn get_files_handler(user_uuid: Uuid) -> Result<Json, Rejection> {
     debug!("Received request for files for user_uuid: {}", user_uuid);
 

@@ -1,6 +1,5 @@
 use warp::Reply;
 use warp::{Filter, Rejection, http::StatusCode, reply::Response};
-use warp::cookie::cookie; // Import cookie
 use crate::models::{Device, Session};
 use bcrypt::verify;
 use uuid::Uuid;

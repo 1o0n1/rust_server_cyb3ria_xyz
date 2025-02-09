@@ -10,7 +10,7 @@ use log::{info, error, debug};
 use bytes::Buf;
 use uuid::Uuid;
 use crate::db::files::save_file_info;
-use crate::middleware;
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 struct UploadResponse {
     message: String,
