@@ -1,12 +1,19 @@
 // src/handlers/profile.rs
-use warp::{Reply, Filter, Rejection, http::StatusCode, reply::Response};
-use crate::models::{ProfileResponse};
+use warp::Reply;
+use warp::{Filter, Rejection, http::StatusCode, reply::Response};
+use crate::models::{ProfileResponse, FileInfo};
 use crate::db::users::find_user_by_uuid;
 use crate::db::profiles::{get_profile_by_user_uuid, create_profile};
 use uuid::Uuid;
-use log::{error, debug};
+use log::{info, error, debug};
+use serde::{Serialize, Deserialize};
+use crate::db::files::get_files_by_user_uuid;
+use chrono::{DateTime, Utc};
+use crate::middleware;
 
-pub async fn profile_handler(user_uuid: Uuid) -> Result<Response, Rejection> {  // Получаем user_uuid из middleware
+
+
+pub async fn profile_handler(user_uuid: Uuid) -> Result<Response, Rejection> {
     debug!("Received profile request for user_uuid: {}", user_uuid);
 
     // Сначала пробуем получить профиль из БД
@@ -55,7 +62,7 @@ pub fn profile_route() -> impl Filter<Extract = (Response,), Error = Rejection> 
     warp::path("api")
         .and(warp::path("profile"))
         .and(crate::middleware::auth::with_auth()) // Используем middleware для авторизации
-        .and_then(|user_uuid: Uuid| async move {  // Получаем user_uuid из middleware
+        .and_then(|user_uuid: Uuid| async move {
             profile_handler(user_uuid).await
         })
 }

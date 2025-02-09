@@ -38,3 +38,18 @@ pub struct ProfileResponse {
     pub bio: Option<String>,
     pub avatar: Option<String>,
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct File {
+    pub file_id: Uuid,
+    pub user_uuid: Uuid,
+    pub filename: String,
+    pub upload_time: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct FileInfo {
+    pub filename: String,
+    pub upload_time: String,
+    pub file_id:Uuid
+}
