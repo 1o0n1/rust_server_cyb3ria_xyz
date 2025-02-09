@@ -1,21 +1,24 @@
 // src/handlers/upload.rs
-use warp::Reply;
-use warp::{Filter, Rejection, http::StatusCode, reply::Response};
+use crate::db::files::save_file_info;
+use bytes::Buf;
+use futures_util::StreamExt;
+use log::{debug, error, info};
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-use futures_util::StreamExt;
-use std::path::Path;
-use serde::{Deserialize, Serialize};
-use log::{info, error, debug};
-use bytes::Buf;
 use uuid::Uuid;
-use crate::db::files::save_file_info;
+use warp::Reply;
+use warp::{http::StatusCode, reply::Response, Filter, Rejection};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 struct UploadResponse {
     message: String,
 }
-pub async fn upload_handler(mut form: warp::multipart::FormData, user_uuid: Uuid) -> Result<Response, Rejection> {
+pub async fn upload_handler(
+    mut form: warp::multipart::FormData,
+    user_uuid: Uuid,
+) -> Result<Response, Rejection> {
     debug!("Received file upload request");
 
     while let Some(item) = form.next().await {
@@ -29,7 +32,8 @@ pub async fn upload_handler(mut form: warp::multipart::FormData, user_uuid: Uuid
                 return Ok(warp::reply::with_status(
                     warp::reply::json(&response),
                     StatusCode::BAD_REQUEST,
-                ).into_response());
+                )
+                .into_response());
             }
         };
 
@@ -44,7 +48,8 @@ pub async fn upload_handler(mut form: warp::multipart::FormData, user_uuid: Uuid
                     return Ok(warp::reply::with_status(
                         warp::reply::json(&response),
                         StatusCode::BAD_REQUEST,
-                    ).into_response());
+                    )
+                    .into_response());
                 }
             };
             let file_path = Path::new("/var/www/rust_server_cyb3ria_xyz/uploaded").join(&file_name); // Использование абсолютного пути
@@ -60,7 +65,8 @@ pub async fn upload_handler(mut form: warp::multipart::FormData, user_uuid: Uuid
                     return Ok(warp::reply::with_status(
                         warp::reply::json(&response),
                         StatusCode::INTERNAL_SERVER_ERROR,
-                    ).into_response());
+                    )
+                    .into_response());
                 }
             };
 
@@ -75,9 +81,10 @@ pub async fn upload_handler(mut form: warp::multipart::FormData, user_uuid: Uuid
                         return Ok(warp::reply::with_status(
                             warp::reply::json(&response),
                             StatusCode::INTERNAL_SERVER_ERROR,
-                        ).into_response());
-                }
-            };
+                        )
+                        .into_response());
+                    }
+                };
 
                 if let Err(e) = file.write_all(chunk.chunk()).await {
                     error!("Failed to write to file: {}", e);
@@ -87,35 +94,35 @@ pub async fn upload_handler(mut form: warp::multipart::FormData, user_uuid: Uuid
                     return Ok(warp::reply::with_status(
                         warp::reply::json(&response),
                         StatusCode::INTERNAL_SERVER_ERROR,
-                    ).into_response());
+                    )
+                    .into_response());
                 }
             }
 
             info!("File saved successfully: {}", file_path_str);
-            
+
             // Save file info to database
-            if let Err(e) = save_file_info(&file_name, user_uuid).await { // Pass user_uuid
+            if let Err(e) = save_file_info(&file_name, user_uuid).await {
+                // Pass user_uuid
                 error!("Failed to save file info to database: {}", e);
             }
-             let response = UploadResponse {
+            let response = UploadResponse {
                 message: "Uploaded succesfully!".to_string(),
-              };
-            return Ok(warp::reply::with_status(
-                warp::reply::json(&response),
-                StatusCode::OK,
-            ).into_response());
-
+            };
+            return Ok(
+                warp::reply::with_status(warp::reply::json(&response), StatusCode::OK)
+                    .into_response(),
+            );
         }
     }
 
     let response = UploadResponse {
         message: "No file found in the form data".to_string(),
     };
-    return Ok(warp::reply::with_status(
-        warp::reply::json(&response),
-        StatusCode::BAD_REQUEST,
-    ).into_response());
-
+    return Ok(
+        warp::reply::with_status(warp::reply::json(&response), StatusCode::BAD_REQUEST)
+            .into_response(),
+    );
 }
 
 pub fn upload_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {
@@ -123,7 +130,10 @@ pub fn upload_route() -> impl Filter<Extract = (Response,), Error = Rejection> +
         .and(warp::path("upload"))
         .and(warp::multipart::form())
         .and(crate::middleware::auth::with_auth()) // Add auth middleware
-        .and_then(|form: warp::multipart::FormData, user_uuid: Uuid| async move { // Get user_uuid
-            upload_handler(form, user_uuid).await // Pass user_uuid
-        })
+        .and_then(
+            |form: warp::multipart::FormData, user_uuid: Uuid| async move {
+                // Get user_uuid
+                upload_handler(form, user_uuid).await // Pass user_uuid
+            },
+        )
 }

@@ -1,19 +1,19 @@
 // src/main.rs
-mod utils;
-mod models;
-mod handlers;
 mod db;
+mod handlers;
+mod models;
+mod utils;
 
-use warp::Filter;
 use dotenv::dotenv;
+use handlers::auth::{login::login_route, logout::logout_route, register::register_route};
+use handlers::chat::client_connection;
+use handlers::profile::profile_route;
+use handlers::upload::upload_route;
 use log::info;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::sync::broadcast;
-use handlers::auth::{register::register_route, login::login_route, logout::logout_route};
-use handlers::chat::client_connection;
-use handlers::upload::upload_route;
-use handlers::profile::profile_route;
+use warp::Filter;
 
 mod middleware;
 use handlers::files::files_route;
@@ -43,12 +43,18 @@ async fn main() {
         .and(warp::addr::remote())
         .and(crate::middleware::auth::with_auth()) // Используем middleware для авторизации
         .map(
-            move |ws: warp::ws::Ws, _addr: Option<std::net::SocketAddr>, user_uuid: Uuid| { //user_uuid получаем из middleware
+            move |ws: warp::ws::Ws, _addr: Option<std::net::SocketAddr>, user_uuid: Uuid| {
+                //user_uuid получаем из middleware
                 let clients_clone = Arc::clone(&clients_clone);
                 let sender_clone = Arc::clone(&sender_clone);
                 //let session_id = params.get("session_id").map(|s| s.to_string());  //session_id больше не нужен
                 ws.on_upgrade(move |socket| {
-                    client_connection(socket, clients_clone, sender_clone, Some(user_uuid.to_string()))  //Передаём user_uuid в client_connection
+                    client_connection(
+                        socket,
+                        clients_clone,
+                        sender_clone,
+                        Some(user_uuid.to_string()),
+                    ) //Передаём user_uuid в client_connection
                 })
             },
         )
@@ -68,7 +74,6 @@ async fn main() {
         .or(files_route)
         .or(profile_route)
         .or(logout_route);
-
 
     info!("Starting server on 127.0.0.1:8081");
     warp::serve(routes).run(([127, 0, 0, 1], 8081)).await;

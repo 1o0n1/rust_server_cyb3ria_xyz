@@ -1,17 +1,19 @@
-use warp::Reply;
-use warp::{Filter, Rejection, http::StatusCode, reply::Response};
-use crate::models::{Device, Session};
-use bcrypt::verify;
-use uuid::Uuid;
-use std::net::SocketAddr;
-use log::{info, error, debug};
-use crate::db::users::find_user_by_username;
+use crate::db::devices::find_device_by_ip_mac;
 use crate::db::devices::save_device_to_db;
 use crate::db::sessions::save_session_to_db;
-use crate::db::devices::find_device_by_ip_mac;
-use crate::handlers::auth::{map_validation_errors, LoginData, LoginResponse, LoginSuccessResponse};
+use crate::db::users::find_user_by_username;
+use crate::handlers::auth::{
+    map_validation_errors, LoginData, LoginResponse, LoginSuccessResponse,
+};
+use crate::models::{Device, Session};
+use bcrypt::verify;
+use chrono::{Duration, Utc};
+use log::{debug, error, info};
+use std::net::SocketAddr;
+use uuid::Uuid;
 use validator::Validate;
-use chrono::{Utc, Duration};
+use warp::Reply;
+use warp::{http::StatusCode, reply::Response, Filter, Rejection};
 
 pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<Response, Rejection> {
     debug!("Received login request: {:?}", login);
@@ -20,22 +22,29 @@ pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<Re
     if let Err(errors) = login.validate() {
         error!("Validation errors: {:?}", errors);
         let error_message = map_validation_errors(errors);
-        let response = LoginResponse { message: error_message , username: "".to_string()};
-        return Ok(warp::reply::with_status(
-            warp::reply::json(&response),
-            StatusCode::BAD_REQUEST,
-        ).into_response());
+        let response = LoginResponse {
+            message: error_message,
+            username: "".to_string(),
+        };
+        return Ok(
+            warp::reply::with_status(warp::reply::json(&response), StatusCode::BAD_REQUEST)
+                .into_response(),
+        );
     }
 
     let user = match find_user_by_username(&login.username).await {
         Ok(user) => user,
         Err(e) => {
             error!("Failed to find user: {}", e);
-            let response = LoginResponse { message: "Failed to find user.".to_string(), username: "".to_string() };
+            let response = LoginResponse {
+                message: "Failed to find user.".to_string(),
+                username: "".to_string(),
+            };
             return Ok(warp::reply::with_status(
                 warp::reply::json(&response),
                 StatusCode::UNAUTHORIZED,
-            ).into_response());
+            )
+            .into_response());
         }
     };
 
@@ -43,20 +52,28 @@ pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<Re
         Ok(valid) => {
             if !valid {
                 error!("Invalid password.");
-                let response = LoginResponse { message: "Invalid password.".to_string(), username: "".to_string() };
+                let response = LoginResponse {
+                    message: "Invalid password.".to_string(),
+                    username: "".to_string(),
+                };
                 return Ok(warp::reply::with_status(
                     warp::reply::json(&response),
                     StatusCode::UNAUTHORIZED,
-                ).into_response());
+                )
+                .into_response());
             }
         }
         Err(e) => {
             error!("Failed to verify password: {}", e);
-            let response = LoginResponse { message: "Failed to verify password.".to_string(), username: "".to_string() };
+            let response = LoginResponse {
+                message: "Failed to verify password.".to_string(),
+                username: "".to_string(),
+            };
             return Ok(warp::reply::with_status(
                 warp::reply::json(&response),
                 StatusCode::INTERNAL_SERVER_ERROR,
-            ).into_response());
+            )
+            .into_response());
         }
     }
 
@@ -72,14 +89,18 @@ pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<Re
                 error!("Failed to save device to database: {}", e);
             }
             device
-        },
+        }
         Err(e) => {
             error!("Failed to find device: {}", e);
-            let response = LoginResponse { message: "Failed to find device.".to_string(), username: "".to_string() };
+            let response = LoginResponse {
+                message: "Failed to find device.".to_string(),
+                username: "".to_string(),
+            };
             return Ok(warp::reply::with_status(
                 warp::reply::json(&response),
                 StatusCode::INTERNAL_SERVER_ERROR,
-            ).into_response());
+            )
+            .into_response());
         }
     };
 
@@ -102,15 +123,18 @@ pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<Re
         session_id: session.session_id,
     };
 
-    let mut resp = warp::reply::with_status(
-        warp::reply::json(&response),
-        StatusCode::OK,
-    ).into_response();
-    
+    let mut resp =
+        warp::reply::with_status(warp::reply::json(&response), StatusCode::OK).into_response();
+
     // **Add the following code:**
     resp.headers_mut().insert(
         "Set-Cookie",
-        format!("session_id={}; HttpOnly; Secure; SameSite=Strict; Path=/", session_id).parse().unwrap()
+        format!(
+            "session_id={}; HttpOnly; Secure; SameSite=Strict; Path=/",
+            session_id
+        )
+        .parse()
+        .unwrap(),
     );
 
     Ok(resp)

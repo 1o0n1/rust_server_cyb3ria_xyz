@@ -1,17 +1,21 @@
 // src/db/files.rs
-use tokio_postgres::NoTls;
-use std::error::Error as StdError;
-use log::{debug, error};
-use uuid::Uuid;
-use chrono::{DateTime, Utc}; // Добавляем импорт
 use crate::models::FileInfo;
-
+use chrono::{DateTime, Utc}; // Добавляем импорт
+use log::{debug, error};
+use std::error::Error as StdError;
+use tokio_postgres::NoTls;
+use uuid::Uuid;
 
 /// Сохраняет информацию о файле в базу данных
-pub async fn save_file_info(filename: &str, user_uuid: Uuid) -> Result<(), Box<dyn StdError + Send + Sync>> {
-    let (client, connection) =
-        tokio_postgres::connect("host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db", NoTls)
-            .await?;
+pub async fn save_file_info(
+    filename: &str,
+    user_uuid: Uuid,
+) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let (client, connection) = tokio_postgres::connect(
+        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
+        NoTls,
+    )
+    .await?;
 
     tokio::spawn(async move {
         if let Err(e) = connection.await {
@@ -19,7 +23,10 @@ pub async fn save_file_info(filename: &str, user_uuid: Uuid) -> Result<(), Box<d
         }
     });
 
-    debug!("Saving file info to database: filename={}, user_uuid={}", filename, user_uuid);
+    debug!(
+        "Saving file info to database: filename={}, user_uuid={}",
+        filename, user_uuid
+    );
     let file_uuid = Uuid::new_v4(); // Add this line
 
     client.execute(
@@ -33,10 +40,14 @@ pub async fn save_file_info(filename: &str, user_uuid: Uuid) -> Result<(), Box<d
 
 /// Получает список файлов пользователя из базы данных
 /// Получает список файлов пользователя из базы данных
-pub async fn get_files_by_user_uuid(user_uuid: Uuid) -> Result<Vec<FileInfo>, Box<dyn StdError + Send + Sync>> {
-    let (client, connection) =
-        tokio_postgres::connect("host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db", NoTls)
-            .await?;
+pub async fn get_files_by_user_uuid(
+    user_uuid: Uuid,
+) -> Result<Vec<FileInfo>, Box<dyn StdError + Send + Sync>> {
+    let (client, connection) = tokio_postgres::connect(
+        "host=localhost user=cyb3ria password=!Abs123 dbname=cyb3ria_db",
+        NoTls,
+    )
+    .await?;
 
     tokio::spawn(async move {
         if let Err(e) = connection.await {
@@ -47,7 +58,10 @@ pub async fn get_files_by_user_uuid(user_uuid: Uuid) -> Result<Vec<FileInfo>, Bo
     debug!("Getting files for user_uuid: {}", user_uuid);
 
     let rows = client
-        .query("SELECT filename, upload_time, file_id FROM files WHERE user_uuid = $1", &[&user_uuid])
+        .query(
+            "SELECT filename, upload_time, file_id FROM files WHERE user_uuid = $1",
+            &[&user_uuid],
+        )
         .await?;
 
     let mut files = Vec::new();
@@ -59,7 +73,7 @@ pub async fn get_files_by_user_uuid(user_uuid: Uuid) -> Result<Vec<FileInfo>, Bo
         files.push(FileInfo {
             filename,
             upload_time: upload_time_string,
-            file_id
+            file_id,
         });
     }
 

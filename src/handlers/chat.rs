@@ -1,16 +1,16 @@
-use warp::ws::{WebSocket, Message};
-use futures_util::stream::{StreamExt};
-use futures_util::SinkExt;
-use std::sync::{Arc, Mutex};
-use tokio::sync::broadcast;
-use tokio::sync::Mutex as TokioMutex;
-use log::{info, error, debug};
-use serde::{Deserialize, Serialize};
 use crate::db::messages::save_message_to_db;
 use crate::db::send_message_history;
 use crate::utils::generate_client_id;
-use tokio::time::{Duration as TokioDuration, interval};
+use futures_util::stream::StreamExt;
+use futures_util::SinkExt;
+use log::{debug, error, info};
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+use tokio::sync::broadcast;
+use tokio::sync::Mutex as TokioMutex;
+use tokio::time::{interval, Duration as TokioDuration};
 use uuid::Uuid;
+use warp::ws::{Message, WebSocket};
 
 type Clients = Arc<Mutex<std::collections::HashMap<String, usize>>>;
 type Sender = Arc<Mutex<broadcast::Sender<String>>>;
@@ -63,7 +63,10 @@ pub async fn client_connection(
         client_id
     };
 
-    info!("New client connected with ID: {}, username: {}", client_id, username);
+    info!(
+        "New client connected with ID: {}, username: {}",
+        client_id, username
+    );
 
     // Отправляем историю сообщений
     if let Err(e) = send_message_history(client_ws_sender.clone()).await {
@@ -134,7 +137,10 @@ pub async fn client_connection(
                     }
                 }
             } else if msg.is_close() {
-                info!("Client disconnected with ID: {}, username: {}", client_id, username);
+                info!(
+                    "Client disconnected with ID: {}, username: {}",
+                    client_id, username
+                );
                 let mut clients = clients.lock().unwrap();
                 clients.remove(&client_id);
                 break;
@@ -156,5 +162,8 @@ pub async fn client_connection(
 
     let mut clients = clients.lock().unwrap();
     clients.remove(&client_id);
-    info!("Client disconnected with ID: {}, username: {}", client_id, username);
+    info!(
+        "Client disconnected with ID: {}, username: {}",
+        client_id, username
+    );
 }
