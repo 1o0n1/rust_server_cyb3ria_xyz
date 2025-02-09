@@ -1,0 +1,96 @@
+/* /var/www/rust_server_cyb3ria_xyz/static/css/menu.css */
+
+.main-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 250px;
+    height: 100vh;
+    background-color: #f0f0f0;
+    transition: transform 0.3s ease;
+    z-index: 100;
+    overflow-y: auto;
+}
+
+.menu-toggle {
+    position: absolute;
+    top: 10px;
+    right: -30px; /* Кнопка немного выступает за пределы меню (когда меню открыто) */
+    width: 30px;
+    height: 30px;
+    background-color: #ddd;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.main-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.main-menu li {
+    margin-bottom: 10px;
+}
+
+.main-menu a,
+.main-menu button {
+    color: #333;
+    text-decoration: none;
+    padding: 5px 10px;
+    display: block;
+    border-radius: 3px;
+}
+
+.main-menu a:hover,
+.main-menu button:hover {
+    background-color: #555;
+    color: #fff;
+}
+
+.main-menu button {
+    background-color: transparent;
+    border: none;
+    text-align: left; /* Выравниваем текст кнопки по левому краю */
+}
+
+/* Скрытое состояние меню */
+.main-menu.collapsed {
+    transform: translateX(-220px); /* Сдвигаем меню влево */
+}
+
+.main-menu.collapsed .menu-toggle {
+    right: 10px; /*  Позиция кнопки, когда меню скрыто*/
+}
+
+/* Стили для больших экранов (ПК) */
+@media (min-width: 769px) { /*  Используем min-width */
+   .menu-toggle {
+     display:flex; /*  Показываем кнопку на больших экранах */
+   }
+
+    /*  Здесь можно добавить дополнительные стили для меню на ПК,
+        если нужно (например, сделать его нефиксированным, а
+        относительно позиционированным) */
+}
+
+/* Стили для мобильных устройств */
+@media (max-width: 768px) {
+    .main-menu {
+        width: 100%;
+        transform: translateX(-100%); /* Изначально скрыто */
+    }
+
+    .main-menu.collapsed {
+        transform: translateX(-100%); /* Скрыто и в свёрнутом состоянии */
+    }
+
+    .main-menu.collapsed .menu-toggle, .menu-toggle {
+        right: 10px; /*  Позиция кнопки */
+    }
+
+}

@@ -5,47 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebSocket Chat</title>
     <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/menu.css">
+    <link rel="stylesheet" href="/static/css/forms.css">
+    <link rel="stylesheet" href="/static/css/chat.css">
 </head>
 <body>
-    <!-- Main Menu -->
-    <nav class="main-menu">
-        <ul>
-            <li><a href="/static/dashboard.html">Dashboard</a></li>
-            <li><a href="/static/chat.html">Chat</a></li>
-            <li><a href="/static/profile.html">Profile</a></li>
-            <li><a href="/static/upload.html">Upload</a></li>
-            <li><button id="logoutBtn">Logout</button></li>
-        </ul>
-    </nav>
-
+    <div id="menu-container"></div>
     <h1>Chat</h1>
     <p id="connection-status">Connecting</p>
     <ul id="messages"></ul>
     <form id="form" action="">
         <input id="name" autocomplete="off" placeholder="Type your message here..." />
         <button type="submit">Send</button>
-    </form>
-    <script>
-        document.getElementById('logoutBtn').addEventListener('click', function() {
-            fetch('/api/logout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            })
-            .then(response => {
-                if (response.ok) {
-                    window.location.href = '/static/choice.html';
-                } else {
-                    alert('Logout failed.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Logout failed.');
-            });
-        });
-    </script>
+    </form>  
+    <script src="/static/js/menu.js"></script>
     <script src="/static/js/scripts.js"></script>
 </body>
 </html>

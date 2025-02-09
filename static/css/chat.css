@@ -1,0 +1,20 @@
+/* /var/www/rust_server_cyb3ria_xyz/static/css/chat.css */
+
+#messages {
+    list-style-type: none;
+    padding: 0;
+    width: 100%;
+    max-width: 800px; /*  добавим  ограничение ширины */
+    max-height: 75vh;
+    overflow-y: auto;
+    border: 1px solid #444;
+    background-color: #2e2e2e;
+    margin-bottom: 20px;
+}
+
+#messages li {
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #2e2e2e; /* Сделали фон таким же, как у контейнера */
+    border-bottom: none; /* Убрали нижнюю границу */
+}

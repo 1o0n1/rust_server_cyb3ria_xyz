@@ -5,69 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile</title>
     <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/menu.css">
+    <!--  <link rel="stylesheet" href="/static/css/forms.css">  Если нужен -->
+    <link rel="stylesheet" href="/static/css/profile.css">  <!-- Если есть специфичные стили -->
 </head>
 <body>
+    <div id="menu-container"></div>
     <h1>Profile</h1>
-    <nav class="main-menu">
-        <ul>
-            <li><a href="/static/dashboard.html">Dashboard</a></li>
-            <li><a href="/static/chat.html">Chat</a></li>
-            <li><a href="/static/profile.html">Profile</a></li>
-            <li><a href="/static/upload.html">Upload</a></li>
-            <li><button id="logoutBtn">Logout</button></li>
-        </ul>
-    </nav>
-
     <div id="profileData">
       <p>Username: <span id="username"></span></p>
       <p>Bio: <span id="bio"></span></p>
       <p>Avatar: <span id="avatar"></span></p>
-
     </div>
 
+    <script src="/static/js/menu.js"></script>
+    <script src="/static/js/scripts.js"></script>
     <script>
-       document.addEventListener('DOMContentLoaded', function() {
-          fetch('/api/profile', {
-              method: 'GET',
-              headers: {
-                  'Content-Type': 'application/json'
-              }
-          })
-          .then(response => {
-              if (!response.ok) {
-                  throw new Error('Network response was not ok');
-              }
-              return response.json();
-          })
-          .then(data => {
-              document.getElementById('username').textContent = data.username;
-              document.getElementById('bio').textContent = data.bio || 'No bio provided.';
-              document.getElementById('avatar').textContent = data.avatar || 'No avatar provided.';
-          })
-          .catch(error => {
-              console.error('Error:', error);
-              document.getElementById('profileData').textContent = 'Failed to load profile.';
-          });
-         document.getElementById('logoutBtn').addEventListener('click', function() {
-             fetch('/api/logout', {
-                method: 'POST', // Или GET, в зависимости от реализации бэкенда
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-             })
-             .then(response => {
-                if (response.ok) {
-                    window.location.href = '/static/choice.html'; // Перенаправляем на страницу логина
-                } else {
-                    alert('Logout failed.');
-                }
-              })
-             .catch(error => {
-                console.error('Error:', error);
-                alert('Logout failed.');
-             });
-          });
-       });
+    document.addEventListener('DOMContentLoaded', function() {
+      fetch('/api/profile', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+      })
+      .then(response => {
+          if (!response.ok) {
+              throw new Error('Network response was not ok');
+          }
+          return response.json();
+      })
+      .then(data => {
+            document.getElementById('username').textContent = data.username;
+            document.getElementById('bio').textContent = data.bio || 'No bio provided.';
+            document.getElementById('avatar').textContent = data.avatar || 'No avatar provided.';
+        })
+       .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('profileData').textContent = 'Failed to load profile.';
+        });
+     });
+
     </script>
 </body>
 </html>

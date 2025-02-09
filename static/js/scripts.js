@@ -1,5 +1,7 @@
+// /var/www/rust_server_cyb3ria_xyz/static/js/scripts.js
+
 // Получаем IP-адрес клиента
-let ipAddress = '';
+let ipAddress = '';  // Объявляем переменную в начале файла
 fetch('https://api.ipify.org?format=json')
     .then(response => response.json())
     .then(data => {
@@ -10,92 +12,73 @@ fetch('https://api.ipify.org?format=json')
         console.error('Error fetching IP address:', error);
     });
 
-// MAC-адрес нельзя получить напрямую в браузере, но можно использовать заглушку
-let macAddress = '00:00:00:00:00:00'; // Заглушка для MAC-адреса
+// MAC-адрес (заглушка)
+let macAddress = '00:00:00:00:00:00';
 
-const messages = document.getElementById('messages');
-const form = document.getElementById('form');
-const input = document.getElementById('name');
-
-//const urlParams = new URLSearchParams(window.location.search);
-//const username = urlParams.get('username');
-
-let ws = null;
+let ws = null; // Глобальная переменная для WebSocket
 
 function connectWebSocket() {
-  if (ws) {
-      ws.close();
-      console.log('WebSocket connection closed');
-   }
+    if (ws) {
+        ws.close();
+        console.log('WebSocket connection closed');
+    }
 
-    const sessionId = localStorage.getItem('session_id'); // Получаем session_id из localStorage
+    const sessionId = localStorage.getItem('session_id');
     if (!sessionId) {
         console.error('Session ID not found.');
-        return; // Прерываем подключение, если нет session_id
+        return;
     }
+
     ws = new WebSocket(`wss://cyb3ria.xyz/api/ws?session_id=${encodeURIComponent(sessionId)}`);
 
     ws.onopen = () => {
         console.log('WebSocket connection established');
-         document.getElementById('connection-status').textContent = "Connected";
+        document.getElementById('connection-status').textContent = "Connected";
     };
 
     ws.onmessage = event => {
         const li = document.createElement('li');
         li.textContent = event.data;
-        messages.appendChild(li);
-        messages.scrollTop = messages.scrollHeight; // Auto-scroll to the bottom
+        if (messages) { // Проверяем, существует ли messages
+            messages.appendChild(li);
+             messages.scrollTop = messages.scrollHeight;
+        }
+
     };
 
     ws.onerror = error => {
         console.error('WebSocket error:', error);
-         document.getElementById('connection-status').textContent = "Error";
-        setTimeout(connectWebSocket, 5000) // Попытка переподключения
+        document.getElementById('connection-status').textContent = "Error";
+        setTimeout(connectWebSocket, 5000);
     };
 
     ws.onclose = () => {
         console.log('WebSocket connection closed');
         document.getElementById('connection-status').textContent = "Disconnected";
-         setTimeout(connectWebSocket, 5000) // Попытка переподключения
+        setTimeout(connectWebSocket, 5000);
     };
 }
 
-if (messages) {
-    connectWebSocket();
-    form.addEventListener('submit', event => {
-        event.preventDefault();
-        //const message = {
-         //   username: username,
-         //   message: input.value,
-         //   ip: ipAddress,
-         //   mac: macAddress
-       // };
-       const message = {
-            message: input.value,
-            ip: ipAddress,
-            mac: macAddress
-        };
-        ws.send(JSON.stringify(message));
-        input.value = '';
-    });
-}
+//  DOMContentLoaded для chat.html
+document.addEventListener('DOMContentLoaded', () => {
+     const messages = document.getElementById('messages');
+     const form = document.getElementById('form');
+     const input = document.getElementById('name');
 
-document.getElementById('logoutBtn').addEventListener('click', function() {
-    fetch('/api/logout', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-    })
-    .then(response => {
-        if (response.ok) {
-            window.location.href = '/static/choice.html';
-        } else {
-            alert('Logout failed.');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Logout failed.');
-    });
+     if (messages && form && input) { // Проверка на null
+        connectWebSocket(); // Подключаем WebSocket только на странице чата
+        form.addEventListener('submit', event => {
+          event.preventDefault();
+          const message = {
+              message: input.value,
+              ip: ipAddress,
+              mac: macAddress
+           };
+            if(ws){ // Проверяем, что ws определен
+                ws.send(JSON.stringify(message));
+            }
+
+            input.value = '';
+        });
+    }
 });

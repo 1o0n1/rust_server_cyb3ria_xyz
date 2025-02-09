@@ -1,0 +1,69 @@
+/* /var/www/rust_server_cyb3ria_xyz/static/css/forms.css */
+/* Общие стили для форм и их элементов */
+
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Центрируем элементы по горизонтали */
+    width: 100%; /*  ширина */
+    max-width: 600px; /*  максимальная ширина */
+    margin: 0 auto; /*  центрируем форму на странице */
+}
+
+input[type="text"],
+input[type="password"],
+input[type="file"],
+textarea {
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #555;
+    background: #333;
+    color: #e0e0e0;
+    width: 100%; /*  ширина */
+    box-sizing: border-box; /*  чтобы padding не увеличивал ширину */
+    border-radius: 4px; /*  скругленные углы */
+}
+
+button, input[type="submit"] {
+    padding: 10px 20px;
+    background: #4CAF50;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    width: auto; /*  ширина по содержимому */
+     margin-top: 10px;
+}
+
+button:hover, input[type="submit"]:hover {
+    background: #367c39;
+}
+
+/*  для инпутов в чате */
+#form {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+     max-width: 800px;
+    margin: 0 auto;
+}
+
+#input {
+    border: 1px solid #555;
+    padding: 10px;
+    width: 80%;
+    margin-right: 10px;
+    border-radius: 4px;
+    background-color: #333;
+    color: #e0e0e0;
+}
+
+#form > button {
+    background: #4CAF50;
+    border: none;
+    padding: 10px 20px;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+     flex-shrink: 0; /* Запрещаем кнопке сжиматься */
+}

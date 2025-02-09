@@ -1,0 +1,27 @@
+/* /var/www/rust_server_cyb3ria_xyz/static/css/upload.css */
+
+#uploadForm {
+    /*  стили для формы загрузки */
+    margin-bottom: 20px;
+}
+
+#result {
+    /*  стили для вывода результата загрузки */
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+#fileList {
+    /*  стили для списка файлов */
+    list-style: none;
+    padding: 0;
+}
+
+#fileList li {
+    margin-bottom: 5px;
+}
+
+#fileList a {
+    /*  стили для ссылок на файлы */
+    color: #4CAF50; /*  зеленый цвет */
+}

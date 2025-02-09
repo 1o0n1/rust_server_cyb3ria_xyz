@@ -1,3 +1,6 @@
+/* /var/www/rust_server_cyb3ria_xyz/static/css/styles.css */
+
+/* Общие стили, базовые стили для всего приложения */
 body {
     display: flex;
     flex-direction: column;
@@ -10,131 +13,19 @@ body {
     color: #e0e0e0;
 }
 
-#messages {
-    list-style-type: none;
-    padding: 0;
-    width: 100%;
-    max-height: 75vh;
-    overflow-y: auto;
-    border: 1px solid #444;
-    background-color: #2e2e2e;
-    margin-bottom: 20px;
-}
-
-#messages li {
-    padding: 10px;
-    margin-bottom: 10px;
-    background-color: #2e2e2e; /* Сделали фон таким же, как у контейнера */
-    border-bottom: none; /* Убрали нижнюю границу */
-}
-
-#form {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-}
-
-#input {
-    border: 1px solid #555;
-    padding: 10px;
-    width: 80%;
-    margin-right: 10px;
-    border-radius: 4px;
-    background-color: #333;
-    color: #e0e0e0;
-}
-
-#form > button {
-    background: #4CAF50;
-    border: none;
-    padding: 10px 20px;
-    color: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-#form > button:hover {
-    background: #367c39;
-}
-
 h1 {
     font-size: 3em;
     margin-bottom: 20px;
-}
-
-form {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-input[type="text"], input[type="password"], input[type="file"] {
-    margin: 10px 0;
-    padding: 10px;
-    border: 1px solid #555;
-    background: #333;
-    color: #e0e0e0;
-}
-
-button {
-    padding: 10px 20px;
-    background: #4CAF50;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-}
-
-button:hover {
-    background: #367c39;
 }
 
 a {
     color: #4CAF50;
     text-decoration: none;
     font-weight: bold;
-    display: block;
+    display: block; /*  чтобы ссылки занимали всю ширину блока */
     margin: 20px 0;
 }
 
 a:hover {
     text-decoration: underline;
-}
-
-.main-menu {
-    position: absolute; /* Добавляем это */
-    top: 10px;
-    left: 10px;
-    background-color: #333;
-    padding: 10px;
-    border-radius: 5px;
-    z-index: 1000; /* Чтобы меню было поверх всего */
-}
-
-.main-menu ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.main-menu li {
-    margin-bottom: 5px;
-}
-
-.main-menu a, .main-menu button {
-    color: #fff;
-    text-decoration: none;
-    padding: 5px 10px;
-    border-radius: 3px;
-    display: block;
-}
-
-.main-menu a:hover, .main-menu button:hover {
-    background-color: #555;
-}
-
-.main-menu button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    text-align: left;
 }

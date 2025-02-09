@@ -1,0 +1,39 @@
+/* /var/www/rust_server_cyb3ria_xyz/static/css/profile.css */
+
+#profileData {
+    max-width: 600px; /*  Максимальная ширина блока */
+    margin: 20px auto; /*  Центрируем блок по горизонтали */
+    padding: 20px;
+    background-color: #2e2e2e; /*  Тёмный фон, как в чате */
+    border: 1px solid #444; /*  Тёмная рамка */
+    border-radius: 5px; /*  Скругленные углы */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5); /*  Тень */
+}
+
+#profileData p {
+    margin-bottom: 15px; /*  Отступ между строками */
+    line-height: 1.6; /*  Увеличиваем межстрочный интервал */
+}
+
+#profileData p:last-child {
+    margin-bottom: 0; /* Убираем отступ у последнего элемента */
+}
+
+#profileData span {
+    font-weight: bold; /*  Выделяем значения жирным */
+    color: #eee;    /*  Светло-серый цвет текста */
+}
+#username{
+    text-transform: uppercase;
+}
+
+/*  Можно добавить стили для аватарки, если она будет изображением */
+/*
+#profileData img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin-bottom: 10px;
+    display: block;
+}
+*/
