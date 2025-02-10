@@ -12,6 +12,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
                 if (!menuToggle || !mainMenu) return;
     
+                function updateButtonAppearance() {
+                    if (window.innerWidth >= 769) {
+                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '>' : '<';
+                    } else {
+                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '✕' : '⋯';
+                    }
+                }
+    
                 function updateButtonPosition() {
                     if (window.innerWidth >= 769) {
                         menuToggle.style.left = mainMenu.classList.contains('active') ? '10px' : '260px';
@@ -21,26 +29,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
     
                 // Устанавливаем начальное состояние кнопки
+                updateButtonAppearance();
                 updateButtonPosition();
-                
-                if (window.innerWidth >= 769) {
-                    menuToggle.innerHTML = '◀';
-                } else {
-                    menuToggle.innerHTML = '≡';
-                }
     
                 menuToggle.addEventListener('click', () => {
                     mainMenu.classList.toggle('active');
+                    updateButtonAppearance();
                     updateButtonPosition();
-    
-                    if (window.innerWidth >= 769) {
-                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '▶' : '◀';
-                    } else {
-                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '✕' : '≡';
-                    }
                 });
     
-                window.addEventListener('resize', updateButtonPosition);
+                window.addEventListener('resize', () => {
+                    updateButtonAppearance();
+                    updateButtonPosition();
+                });
     
                 const logoutBtn = document.getElementById('logoutBtn');
                 if (logoutBtn) {
