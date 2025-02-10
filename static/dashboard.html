@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="/static/css/menu.css">
@@ -10,7 +12,15 @@
 <body>
     <div id="menu-container"></div>
     <h1>Dashboard</h1>
-
+    
+    <div class="dashboard-info">
+        <p>Привет, <span id="username">User</span>!</p>
+        <p>Статус соединения: <span id="connection-status">Loading...</span></p>
+        
+        <h2>Последние сообщения:</h2>
+        <ul id="latest-messages"></ul>
+    </div>
+    
     <script src="/static/js/menu.js"></script>
     <script src="/static/js/scripts.js"></script>
 </body>

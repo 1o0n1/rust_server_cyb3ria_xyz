@@ -1,5 +1,11 @@
-/* /var/www/rust_server_cyb3ria_xyz/static/css/dashboard.css */
-/* Стили для разметки */
-.main-content {
+.dashboard-info {
+    background: #333;
     padding: 20px;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 800px;
+}
+.dashboard-info h2 {
+    margin-top: 20px;
+    font-size: 1.5em;
 }

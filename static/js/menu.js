@@ -24,9 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateButtonPosition();
                 
                 if (window.innerWidth >= 769) {
-                    menuToggle.innerHTML = '<';
+                    menuToggle.innerHTML = '◀';
                 } else {
-                    menuToggle.innerHTML = '⋯';
+                    menuToggle.innerHTML = '≡';
                 }
     
                 menuToggle.addEventListener('click', () => {
@@ -34,9 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateButtonPosition();
     
                     if (window.innerWidth >= 769) {
-                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '>' : '<';
+                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '▶' : '◀';
                     } else {
-                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '✕' : '⋯';
+                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '✕' : '≡';
                     }
                 });
     
