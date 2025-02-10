@@ -19,7 +19,7 @@ overflow-y: auto;
 
     /* При добавлении класса active меню сдвигается влево (скрывается) */
     .main-menu.active {
-        transform: translateX(-220px);
+        transform: translateX(-100%);
     }
 
     /* Кнопка переключения меню всегда видна справа от меню */
@@ -28,7 +28,7 @@ overflow-y: auto;
     }
 }
 .main-menu.active {
-transform: translateX(-220px);
+transform: translateX(-100%);
 }
 .menu-toggle {
     position: fixed;
@@ -45,6 +45,7 @@ transform: translateX(-220px);
     font-size: 16px;
     z-index: 200; /* Поверх меню */
     transition: left 0.3s ease;
+    border-radius: 6px; /* Добавь скругление углов */
 }
 /* Стили для мобильных устройств */
 @media (max-width: 768px) {
@@ -63,23 +64,6 @@ transform: translateX(-220px);
     .menu-toggle {
         right: 10px; /* Кнопка остается справа от меню */
     }
-}
-/* Кнопку делаем фиксированной, чтобы она была видна вне зависимости от положения меню */
-.menu-toggle {
-    position: fixed;
-    top: 10px;
-    left: 260px; /* Находится рядом с меню */
-    background-color: #ddd;
-    border: none;
-    cursor: pointer;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    z-index: 200; /* Поверх меню */
-    transition: left 0.3s ease;
 }
 /* Стили для элементов списка меню */
 .main-menu ul {

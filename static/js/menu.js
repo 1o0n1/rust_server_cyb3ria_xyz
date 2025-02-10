@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (window.innerWidth >= 769) {
                         menuToggle.innerHTML = mainMenu.classList.contains('active') ? '>' : '<';
                     } else {
-                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '✕' : '⋯';
+                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '>' : '<';
                     }
                 }
     
