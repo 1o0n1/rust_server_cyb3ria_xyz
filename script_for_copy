@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# Путь к корневой директории проекта
+PROJECT_ROOT="/var/www/rust_server_cyb3ria_xyz"
+
+# Имя файла вывода (без номера)
+OUTPUT_FILE_BASE="$PROJECT_ROOT/project_contents"
+
+# Функция для проверки и изменения имени файла
+get_available_filename() {
+  local base="$1"
+  local filename="$base.txt"
+  local counter=1
+
+  while [ -f "$filename" ]; do
+    filename="${base}_${counter}.txt"
+    ((counter++))
+  done
+
+  echo "$filename"
+}
+
+# Определяем имя файла вывода, которое не существует
+OUTPUT_FILE=$(get_available_filename "$OUTPUT_FILE_BASE")
+
+
+# Функция для обработки файла
+process_file() {
+  FILE_PATH="$1"
+  echo "$FILE_PATH" >> "$OUTPUT_FILE"
+  echo "" >> "$OUTPUT_FILE"
+  cat "$FILE_PATH" >> "$OUTPUT_FILE"
+  echo "" >> "$OUTPUT_FILE"
+  echo "" >> "$OUTPUT_FILE"
+  echo "" >> "$OUTPUT_FILE"
+}
+
+# Список файлов
+FILES=(
+  "$PROJECT_ROOT/.env"
+  "$PROJECT_ROOT/Cargo.toml"
+  "$PROJECT_ROOT/src/main.rs"
+  "$PROJECT_ROOT/src/utils.rs"
+  "$PROJECT_ROOT/src/models.rs"
+  "$PROJECT_ROOT/src/middleware/auth.rs"
+  "$PROJECT_ROOT/src/middleware/mod.rs"
+  "$PROJECT_ROOT/src/handlers/auth/register.rs"
+  "$PROJECT_ROOT/src/handlers/auth/login.rs"
+  "$PROJECT_ROOT/src/handlers/auth/logout.rs"
+  "$PROJECT_ROOT/src/handlers/auth/mod.rs"
+  "$PROJECT_ROOT/src/handlers/chat.rs"
+  "$PROJECT_ROOT/src/handlers/upload.rs"
+  "$PROJECT_ROOT/src/handlers/profile.rs"
+  "$PROJECT_ROOT/src/handlers/files.rs"
+  "$PROJECT_ROOT/src/handlers/mod.rs"
+  "$PROJECT_ROOT/src/db/messages.rs"
+  "$PROJECT_ROOT/src/db/users.rs"
+  "$PROJECT_ROOT/src/db/devices.rs"
+  "$PROJECT_ROOT/src/db/sessions.rs"
+  "$PROJECT_ROOT/src/db/profiles.rs"
+  "$PROJECT_ROOT/src/db/files.rs"
+  "$PROJECT_ROOT/src/db/mod.rs"
+  "$PROJECT_ROOT/static/css/chat.css"
+  "$PROJECT_ROOT/static/css/dashboard.css"
+  "$PROJECT_ROOT/static/css/forms.css"
+  "$PROJECT_ROOT/static/css/menu.css"
+  "$PROJECT_ROOT/static/css/profile.css"
+  "$PROJECT_ROOT/static/css/styles.css"
+  "$PROJECT_ROOT/static/css/upload.css"
+  "$PROJECT_ROOT/static/js/menu.js"
+  "$PROJECT_ROOT/static/js/scripts.js"
+  "$PROJECT_ROOT/static/chat.html"
+  "$PROJECT_ROOT/static/choice.html"
+  "$PROJECT_ROOT/static/dashboard.html"
+  "$PROJECT_ROOT/static/menu.html"
+  "$PROJECT_ROOT/static/profile.html"
+  "$PROJECT_ROOT/static/upload.html"
+)
+
+# Обрабатываем файлы из списка
+for FILE in "${FILES[@]}"; do
+  process_file "$FILE"
+done
+
+echo "Содержимое проекта записано в файл: $OUTPUT_FILE"

@@ -1,0 +1,101 @@
+#!/bin/bash
+
+# Подключение к базе данных
+DATABASE_URL="postgres://cyb3ria:!Abs123@localhost/cyb3ria_db"
+
+# Базовое имя файла
+OUTPUT_FILE_BASE="database_schema"
+
+# Функция для получения доступного имени файла
+get_available_filename() {
+  local base="$1"
+  local filename="$base.txt"
+  local counter=1
+
+  while [ -f "$filename" ]; do
+    filename="${base}_${counter}.txt"
+    ((counter++))
+  done
+
+  echo "$filename"
+}
+
+# Получаем доступное имя файла
+OUTPUT_FILE=$(get_available_filename "$OUTPUT_FILE_BASE")
+
+# Функция для получения информации о таблицах в человекочитаемом формате
+get_database_info() {
+  psql "$DATABASE_URL" -Atc "
+  SELECT 
+    table_name
+  FROM 
+    information_schema.tables
+  WHERE 
+    table_schema = 'public'
+  AND table_type = 'BASE TABLE'
+  ORDER BY 
+    table_name;
+  " | while read TABLE_NAME; do
+    if [ -n \"$TABLE_NAME\" ]; then  # Check if TABLE_NAME is not empty
+      echo \"Таблица \\\"${TABLE_NAME}\\\":\"
+
+      # Получаем информацию о столбцах
+psql "$DATABASE_URL" -Atc "
+      SELECT 
+        column_name,
+        data_type,
+        CASE 
+          WHEN column_default IS NOT NULL THEN 'DEFAULT ' || column_default ELSE '' 
+        END,
+        CASE 
+          WHEN is_nullable = 'NO' THEN 'NOT NULL' ELSE '' 
+        END,
+        CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM information_schema.table_constraints AS tc
+            JOIN information_schema.constraint_column_usage AS ccu ON tc.constraint_name = ccu.constraint_name
+            WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_name = '${TABLE_NAME}' AND ccu.column_name = columns.column_name
+          ) THEN 'PRIMARY KEY'
+          ELSE ''
+        END,
+        CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM information_schema.table_constraints AS tc
+            JOIN information_schema.constraint_column_usage AS ccu ON tc.constraint_name = ccu.constraint_name
+            WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name = '${TABLE_NAME}' AND ccu.column_name = columns.column_name
+          ) THEN 'FOREIGN KEY'
+          ELSE ''
+        END
+      FROM 
+        information_schema.columns
+      WHERE 
+        table_schema = 'public' AND table_name = '${TABLE_NAME}'
+      ORDER BY 
+        column_name;
+      "
+      # Получаем информацию об индексах
+      psql "$DATABASE_URL" -Atc "
+      SELECT
+        indexname,
+        indexdef
+      FROM
+        pg_indexes
+      WHERE
+        schemaname = 'public' AND tablename = '${TABLE_NAME}';
+      " | while IFS='|' read INDEX_NAME INDEX_DEF; do
+        echo "  Индекс: ${INDEX_NAME} | ${INDEX_DEF}"
+      done
+
+      echo "" # Пустая строка для разделения таблиц
+    fi
+  done
+}
+
+# Запускаем функцию и сохраняем результат в файл
+DATABASE_INFO=$(get_database_info)
+echo "$DATABASE_INFO"
+echo "$DATABASE_INFO" > "$OUTPUT_FILE"
+
+echo "Информация о схеме базы данных сохранена в $OUTPUT_FILE"
