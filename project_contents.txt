@@ -236,6 +236,8 @@ pub mod auth;
 
 /var/www/rust_server_cyb3ria_xyz/src/handlers/auth/register.rs
 
+// src/handlers/auth/register.rs
+
 use crate::db::users::save_user_to_db;
 use crate::handlers::auth::{map_validation_errors, RegistrationData, RegistrationResponse};
 use crate::models::User;
@@ -303,14 +305,19 @@ pub async fn register_handler(
 
     match save_user_to_db(user).await {
         Ok(_) => {
-            info!("User registered successfully.");
-            let response = RegistrationResponse {
-                message: "User registered successfully".to_string(),
-            };
-            Ok(
-                warp::reply::with_status(warp::reply::json(&response), StatusCode::OK)
-                    .into_response(),
-            )
+            info!("User registered successfully. Redirecting to login page.");
+            //  Редирект на страницу логина.  Здесь вместо JSON, простой редирект
+            let resp = warp::reply::with_status(warp::reply::html(""), StatusCode::FOUND)
+                .into_response(); //  Использовали HTML для редиректа.
+
+             let mut resp =
+                 warp::reply::with_status(warp::reply::json(&""), StatusCode::FOUND).into_response();
+
+             resp.headers_mut().insert(
+                 "Location",
+                 "/static/login.html".parse().unwrap(),
+             );
+             Ok(resp)
         }
         Err(e) => {
             error!("Failed to save user to database: {}", e);
@@ -338,7 +345,6 @@ pub fn register_route() -> impl Filter<Extract = (Response,), Error = Rejection>
             },
         )
 }
-
 
 
 /var/www/rust_server_cyb3ria_xyz/src/handlers/auth/login.rs
@@ -2225,6 +2231,95 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+/var/www/rust_server_cyb3ria_xyz/static/login.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <h1>Login</h1>
+    <form id="loginForm">
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username" required title="Username must be between 3 and 16 characters"><br>
+        <small>Username must be between 3 and 16 characters</small><br>
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password" required title="Password must be between 6 and 16 characters"><br>
+         <small>Password must be between 6 and 16 characters</small><br>
+        <input type="hidden" id="ipAddress" name="ipAddress">
+        <input type="hidden" id="macAddress" name="macAddress">
+        <button type="submit">Login</button>
+    </form>
+     <div id="result"></div>
+    <script>
+        // Получаем IP-адрес клиента
+        fetch('https://api.ipify.org?format=json')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('ipAddress').value = data.ip;
+            })
+            .catch(error => {
+                console.error('Error fetching IP address:', error);
+            });
+
+        // MAC-адрес нельзя получить напрямую в браузере, используем заглушку
+        document.getElementById('macAddress').value = '00:00:00:00:00:00';
+
+        document.getElementById('loginForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const ipAddress = document.getElementById('ipAddress').value;
+            const macAddress = document.getElementById('macAddress').value;
+
+            fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    username: username, 
+                    password: password,
+                    ip_address: ipAddress,
+                    mac_address: macAddress
+                })
+            })
+          .then(async response => {
+                if (!response.ok) {
+                  try {
+                      const errorData = await response.json();
+                      throw new Error(errorData.message);
+                   } catch (jsonError) {
+                      throw new Error(`Network response was not ok: ${response.statusText}`);
+                    }
+                }
+                return response.json();
+            })
+            .then(data => {
+               console.log('Success:', data);
+               localStorage.setItem('session_id', data.session_id); // Сохраняем session_id в localStorage
+                if(data.username) {
+                    window.location.href = `/static/dashboard.html`; // После логина перенаправляем на dashboard
+                } else {
+                    document.getElementById('result').textContent = data.message;
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                document.getElementById('result').textContent = 'Error: ' + error.message;
+            });
+            
+        });
+    </script>
+</body>
+</html>
+
+
 /var/www/rust_server_cyb3ria_xyz/static/menu.html
 
 <!-- /var/www/rust_server_cyb3ria_xyz/static/menu.html -->
@@ -2289,6 +2384,102 @@ document.addEventListener('DOMContentLoaded', () => {
         });
      });
 
+    </script>
+</body>
+</html>
+
+
+/var/www/rust_server_cyb3ria_xyz/static/register.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <h1>Register</h1>
+    <form id="registerForm">
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username" required title="Username must be between 3 and 16 characters"><br>
+        <small>Username must be between 3 and 16 characters</small><br>
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password" required title="Password must be between 6 and 16 characters"><br>
+        <small>Password must be between 6 and 16 characters</small><br>
+        <label for="repeatPassword">Repeat Password:</label><br>
+        <input type="password" id="repeatPassword" name="repeatPassword" required title="Repeat password must be between 6 and 16 characters"><br>
+         <small>Repeat password must be between 6 and 16 characters</small><br>
+        <label for="invitationCode">Invitation Code:</label><br>
+        <input type="text" id="invitationCode" name="invitationCode" required title="Invitation code must be between 3 and 16 characters"><br>
+        <small>Invitation code must be between 3 and 16 characters</small><br>
+        <input type="hidden" id="ipAddress" name="ipAddress">
+        <input type="hidden" id="macAddress" name="macAddress">
+        <button type="submit">Register</button>
+    </form>
+    <div id="result"></div>
+    <script>
+        // Получаем IP-адрес клиента
+        fetch('https://api.ipify.org?format=json')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('ipAddress').value = data.ip;
+            })
+            .catch(error => {
+                console.error('Error fetching IP address:', error);
+            });
+
+        // MAC-адрес нельзя получить напрямую в браузере
+        document.getElementById('macAddress').value = '00:00:00:00:00:00'; // Заглушка
+
+        document.getElementById('registerForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const repeatPassword = document.getElementById('repeatPassword').value;
+            const invitationCode = document.getElementById('invitationCode').value;
+            const ipAddress = document.getElementById('ipAddress').value;
+            const macAddress = document.getElementById('macAddress').value;
+
+            if (!username || !password || !repeatPassword || !invitationCode) {
+                document.getElementById('result').textContent = 'Please fill in all fields.';
+                return;
+            }
+
+            fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password,
+                    repeat_password: repeatPassword,
+                    invitation_code: invitationCode,
+                    ip_address: ipAddress,
+                    mac_address: macAddress
+                })
+            })
+            .then(async response => {
+                if (response.ok) {
+                    // Просто перенаправляем пользователя, если ответ успешен (код 302)
+                    window.location.href = '/static/login.html';
+                } else {
+                  try {
+                      const errorData = await response.json();
+                      throw new Error(errorData.message);
+                   } catch (jsonError) {
+                      throw new Error(`Network response was not ok: ${response.statusText}`);
+                    }
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+               document.getElementById('result').textContent = 'Error: ' + error.message;
+            });
+        });
     </script>
 </body>
 </html>

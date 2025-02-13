@@ -72,8 +72,10 @@ FILES=(
   "$PROJECT_ROOT/static/chat.html"
   "$PROJECT_ROOT/static/choice.html"
   "$PROJECT_ROOT/static/dashboard.html"
+  "$PROJECT_ROOT/static/login.html"
   "$PROJECT_ROOT/static/menu.html"
   "$PROJECT_ROOT/static/profile.html"
+  "$PROJECT_ROOT/static/register.html"
   "$PROJECT_ROOT/static/upload.html"
 )
 

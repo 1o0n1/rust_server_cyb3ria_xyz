@@ -1,3 +1,5 @@
+// src/handlers/auth/register.rs
+
 use crate::db::users::save_user_to_db;
 use crate::handlers::auth::{map_validation_errors, RegistrationData, RegistrationResponse};
 use crate::models::User;
@@ -65,14 +67,19 @@ pub async fn register_handler(
 
     match save_user_to_db(user).await {
         Ok(_) => {
-            info!("User registered successfully.");
-            let response = RegistrationResponse {
-                message: "User registered successfully".to_string(),
-            };
-            Ok(
-                warp::reply::with_status(warp::reply::json(&response), StatusCode::OK)
-                    .into_response(),
-            )
+            info!("User registered successfully. Redirecting to login page.");
+            //  Редирект на страницу логина.  Здесь вместо JSON, простой редирект
+            let resp = warp::reply::with_status(warp::reply::html(""), StatusCode::FOUND)
+                .into_response(); //  Использовали HTML для редиректа.
+
+             let mut resp =
+                 warp::reply::with_status(warp::reply::json(&""), StatusCode::FOUND).into_response();
+
+             resp.headers_mut().insert(
+                 "Location",
+                 "/static/login.html".parse().unwrap(),
+             );
+             Ok(resp)
         }
         Err(e) => {
             error!("Failed to save user to database: {}", e);

@@ -70,7 +70,10 @@
                 })
             })
             .then(async response => {
-                if (!response.ok) {
+                if (response.ok) {
+                    // Просто перенаправляем пользователя, если ответ успешен (код 302)
+                    window.location.href = '/static/login.html';
+                } else {
                   try {
                       const errorData = await response.json();
                       throw new Error(errorData.message);
@@ -78,11 +81,6 @@
                       throw new Error(`Network response was not ok: ${response.statusText}`);
                     }
                 }
-               return response.json();
-            })
-            .then(data => {
-                console.log('Success:', data);
-                document.getElementById('result').textContent = 'Success: ' + data.message;
             })
             .catch((error) => {
                 console.error('Error:', error);
