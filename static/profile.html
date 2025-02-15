@@ -16,11 +16,11 @@
         <img id="avatarImg" src="" alt="Avatar">
         <img id="profileBannerImg" src="" alt="Profile Banner">
         <p>Username: <span id="username"></span></p>
-        <p>Bio: <span id="bioDisplay"></span></p>
+        <p>Bio: <span id="bio"></span></p>
         <p>Storage Access: <span id="storageAccess"></span></p>
     </div>
 
-    <h2>Edit Profile</h2>
+    <h2 id="editProfileHeader">Edit Profile</h2>
     <form id="editProfileForm">
         <label for="bio">Bio:</label><br>
         <textarea id="bio" name="bio"></textarea><br><br>
@@ -51,7 +51,6 @@
             const editProfileForm = document.getElementById('editProfileForm');
             const usernameSpan = document.getElementById('username');
             const bioTextarea = document.getElementById('bio');
-            console.dir(bioTextarea); // Добавлено логирование
             const avatarInput = document.getElementById('avatar');
             const avatarImg = document.getElementById('avatarImg');
             const profileBannerInput = document.getElementById('profileBanner');
@@ -59,11 +58,27 @@
             const storageAccessSelect = document.getElementById('storageAccessSelect');
             const storageAccessSpan = document.getElementById('storageAccess');
             const allowedViewersInput = document.getElementById('allowedViewers');
+            const editProfileHeader = document.getElementById("editProfileHeader");
+
+            // Function to get user_uuid from URL
+            function getParameterByName(name, url = window.location.href) {
+                name = name.replace(/[\[\]]/g, '\\$&');
+                var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+                    results = regex.exec(url);
+                if (!results) return null;
+                if (!results[2]) return '';
+                return decodeURIComponent(results[2].replace(/\+/g, ' '));
+            }
 
             // Function to fetch profile data
-                        
             function fetchProfile() {
-                const userUuid = localStorage.getItem('user_uuid');
+                let userUuid = getParameterByName('user_uuid');
+                const currentUserUuid = localStorage.getItem('user_uuid');
+
+                if (!userUuid) {
+                    userUuid = currentUserUuid; // If no user_uuid in URL, use the current user's UUID
+                }
+
                 if (!userUuid) {
                     console.error('User UUID not found.');
                     profileData.textContent = 'User UUID not found. Please log in.';
@@ -85,7 +100,6 @@
                 .then(data => {
                     usernameSpan.textContent = data.username;
                     bioTextarea.value = data.bio || '';
-                    bioDisplay.textContent = data.bio || '';
                     avatarInput.value = data.avatar || '';
                     avatarImg.src = data.avatar || '';
                     profileBannerInput.value = data.profile_banner || '';
@@ -93,6 +107,15 @@
                     storageAccessSelect.value = data.storage_access;
                     storageAccessSpan.textContent = data.storage_access;
                     allowedViewersInput.value = data.allowed_viewers ? data.allowed_viewers.join(', ') : '';
+                    
+                    // Hide or disable the edit form if it's not the current user's profile
+                    if (userUuid !== currentUserUuid) {
+                        editProfileForm.style.display = 'none';
+                        editProfileHeader.style.display = 'none';
+                    } else {
+                        editProfileForm.style.display = 'block';
+                        editProfileHeader.style.display = 'block';
+                    }
                 })
                 .catch(error => {
                     console.error('Error:', error);
@@ -110,8 +133,6 @@
                 const storageAccess = storageAccessSelect.value;
                 const allowedViewersInput = document.getElementById('allowedViewers').value;
                 const allowedViewers = allowedViewersInput.split(',').map(s => s.trim()).filter(s => s !== '');
-
-                console.log("Bio being sent:", bio);
 
                 fetch('/api/profile', {
                     method: 'PUT',
