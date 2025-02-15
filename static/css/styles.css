@@ -1,6 +1,5 @@
-/* /var/www/rust_server_cyb3ria_xyz/static/css/styles.css */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400&display=swap');
 
-/* Общие стили, базовые стили для всего приложения */
 body {
     display: flex;
     flex-direction: column;
@@ -8,24 +7,29 @@ body {
     justify-content: flex-start;
     height: 100vh;
     margin: 0;
-    font-family: Arial, sans-serif;
-    background-color: #1e1e1e;
+    font-family: 'Orbitron', sans-serif;
+    background-color: #0a0a0a; /* Глубокий чёрный фон */
     color: #e0e0e0;
 }
 
 h1 {
-    font-size: 3em;
+    font-size: 2.5em;
     margin-bottom: 20px;
+    color: #00829b; /* Киберпанковый синий */
+    text-transform: uppercase;
+    letter-spacing: 2px;
 }
 
 a {
-    color: #4CAF50;
+    color: #ff534b; /* Активный красный */
     text-decoration: none;
     font-weight: bold;
-    display: block; /*  чтобы ссылки занимали всю ширину блока */
-    margin: 20px 0;
+    display: block;
+    margin: 15px 0;
+    transition: color 0.2s ease-in-out;
 }
 
 a:hover {
-    text-decoration: underline;
+    text-decoration: none;
+    color: #a10f03; /* Неактивный красный */
 }

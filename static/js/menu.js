@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
                 function updateButtonPosition() {
                     if (window.innerWidth >= 769) {
-                        menuToggle.style.left = mainMenu.classList.contains('active') ? '10px' : '260px';
+                        menuToggle.style.left = mainMenu.classList.contains('active') ? '10px' : '160px';
                     } else {
                         menuToggle.style.left = '10px';
                     }

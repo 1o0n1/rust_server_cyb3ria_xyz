@@ -1,13 +1,14 @@
-/* /var/www/rust_server_cyb3ria_xyz/static/css/forms.css */
-/* Общие стили для форм и их элементов */
-
 form {
     display: flex;
     flex-direction: column;
-    align-items: center; /* Центрируем элементы по горизонтали */
-    width: 100%; /*  ширина */
-    max-width: 600px; /*  максимальная ширина */
-    margin: 0 auto; /*  центрируем форму на странице */
+    align-items: center;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    background: #0a0a0a; /* Глубокий чёрный */
+    padding: 20px;
+    border: 1px solid #00829b;
+    border-radius: 8px;
 }
 
 input[type="text"],
@@ -16,54 +17,65 @@ input[type="file"],
 textarea {
     margin: 10px 0;
     padding: 10px;
-    border: 1px solid #555;
-    background: #333;
+    border: 1px solid #00829b;
+    background: #0a0a0a;
     color: #e0e0e0;
-    width: 100%; /*  ширина */
-    box-sizing: border-box; /*  чтобы padding не увеличивал ширину */
-    border-radius: 4px; /*  скругленные углы */
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
 }
 
 button, input[type="submit"] {
     padding: 10px 20px;
-    background: #4CAF50;
+    background: #ff534b;
     color: #fff;
-    border: none;
+    border: 1px solid #a10f03;
     cursor: pointer;
     border-radius: 4px;
-    width: auto; /*  ширина по содержимому */
-     margin-top: 10px;
+    width: auto;
+    margin-top: 10px;
+    text-transform: uppercase;
+    font-family: 'Orbitron', sans-serif;
 }
 
 button:hover, input[type="submit"]:hover {
-    background: #367c39;
+    background: #a10f03; /* Неактивный красный */
+    border-color: #ff534b;
 }
 
-/*  для инпутов в чате */
+/* Чат-форма */
 #form {
     display: flex;
     justify-content: center;
     width: 100%;
-     max-width: 800px;
+    max-width: 800px;
     margin: 0 auto;
 }
 
 #input {
-    border: 1px solid #555;
+    border: 1px solid #00829b;
     padding: 10px;
     width: 80%;
     margin-right: 10px;
     border-radius: 4px;
-    background-color: #333;
+    background-color: #0a0a0a;
     color: #e0e0e0;
+    font-family: 'Orbitron', sans-serif;
 }
 
 #form > button {
-    background: #4CAF50;
-    border: none;
+    background: #ff534b;
+    border: 1px solid #a10f03;
     padding: 10px 20px;
     color: #fff;
     border-radius: 4px;
     cursor: pointer;
-     flex-shrink: 0; /* Запрещаем кнопке сжиматься */
+    flex-shrink: 0;
+    text-transform: uppercase;
+}
+
+#form > button:hover {
+    background: #a10f03;
+    border-color: #ff534b;
 }

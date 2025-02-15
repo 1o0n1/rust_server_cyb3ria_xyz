@@ -1,98 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400&display=swap');
+
 .main-menu {
-position: fixed;
-top: 0;
-left: 0;
-width: 250px;
-height: 100vh;
-background-color: #706f6f;
-transition: transform 0.3s ease;
-z-index: 100;
-overflow-y: auto;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200px;
+    height: 100vh;
+    background-color: #0a0a0a; /* Глубокий чёрный */
+    border-right: 1px solid #00829b; /* Тонкая синяя линия */
+    transition: transform 0.3s ease;
+    z-index: 100;
+    overflow-y: auto;
+    font-family: 'Orbitron', sans-serif;
 }
 
-/* Стили для десктопа (ПК) */
-@media (min-width: 769px) {
-    /* На ПК меню видно по умолчанию */
-    .main-menu {
-        transform: translateX(0);
-    }
-
-    /* При добавлении класса active меню сдвигается влево (скрывается) */
-    .main-menu.active {
-        transform: translateX(-100%);
-    }
-
-    /* Кнопка переключения меню всегда видна справа от меню */
-    .menu-toggle {
-        right: calc(250px + 10px); /* Устанавливаем отступ справа от меню */
-    }
-}
+/* Закрытое меню */
 .main-menu.active {
-transform: translateX(-100%);
+    transform: translateX(-100%);
 }
+
+/* Кнопка открытия/закрытия */
 .menu-toggle {
     position: fixed;
-    top: 10px;
-    left: 260px; /* Находится рядом с меню */
-    background-color: #ddd;
-    border: none;
+    top: 20px; /* Фиксируем положение */
+    left: 210px;
+    background-color: #111;
+    color: #00829b;
+    border: 1px solid #00829b;
     cursor: pointer;
     width: 40px;
     height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
-    z-index: 200; /* Поверх меню */
-    transition: left 0.3s ease;
-    border-radius: 6px; /* Добавь скругление углов */
+    font-size: 18px;
+    z-index: 200;
+    transition: all 0.3s ease;
+    border-radius: 3px;
 }
-/* Стили для мобильных устройств */
-@media (max-width: 768px) {
-    /* На мобильных меню скрыто по умолчанию */
-    .main-menu {
-        transform: translateX(-100%);
-        width: 250px;
-    }
 
-    /* При добавлении класса active меню появляется */
-    .main-menu.active {
-        transform: translateX(0);
-    }
 
-    /* Кнопка переключения меню всегда видна справа от меню */
-    .menu-toggle {
-        right: 10px; /* Кнопка остается справа от меню */
-    }
+.menu-toggle:hover {
+    background-color: #00829b;
+    color: #0a0a0a;
 }
-/* Стили для элементов списка меню */
+
+/* Элементы списка */
 .main-menu ul {
-list-style: none;
-padding: 0;
-margin: 0;
+    list-style: none;
+    padding: 10px;
+    margin: 0;
 }
 
 .main-menu li {
-margin-bottom: 10px;
+    margin-bottom: 10px;
 }
 
+/* Ссылки и кнопки */
 .main-menu a,
 .main-menu button {
-color: #333;
-text-decoration: none;
-padding: 5px 10px;
-display: block;
-border-radius: 3px;
+    color: #a10f03; /* Неактивный красный */
+    text-decoration: none;
+    padding: 10px;
+    display: block;
+    font-size: 14px;
+    transition: 0.2s ease;
+    border-left: 2px solid transparent;
 }
 
-.main-menu a:hover,
-.main-menu button:hover {
-background-color: #555;
-color: #fff;
+/* Наведение */
+.main-menu a:hover {
+    color: #ff534b; /* Активный красный */
+    border-left: 2px solid #ff534b;
 }
 
+/* Активный элемент */
+.main-menu a.active {
+    color: #00829b;
+    border-left: 2px solid #00829b;
+}
+
+/* Кнопка выхода */
 .main-menu button {
-background-color: transparent;
-border: none;
-text-align: left;
+    background-color: transparent;
+    border: none;
+    text-align: left;
+    color: #a10f03; /* Неактивный красный */
+    font-size: 14px;
+    padding: 10px;
+    width: 100%;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+/* При наведении кнопка выхода становится красной */
+.main-menu button:hover {
+    background-color: #a10f03; /* Фон становится неактивно-красным */
+    color: #fff; /* Белый текст для контраста */
 }

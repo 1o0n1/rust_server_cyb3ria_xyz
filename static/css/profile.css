@@ -1,37 +1,50 @@
 #profileData {
-    max-width: 600px; /*  Максимальная ширина блока /
-    margin: 20px auto; /  Центрируем блок по горизонтали /
+    max-width: 600px;
+    margin: 0 auto;
     padding: 20px;
-    background-color: #2e2e2e; /  Тёмный фон, как в чате /
-    border: 1px solid #444; /  Тёмная рамка /
-    border-radius: 5px; /  Скругленные углы /
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5); /  Тень */
-    }
-    
-    #profileData p {
-    margin-bottom: 15px; /*  Отступ между строками /
-    line-height: 1.6; /  Увеличиваем межстрочный интервал */
-    }
-    
-    #profileData p:last-child {
-    margin-bottom: 0; /* Убираем отступ у последнего элемента */
-    }
-    
-    #profileData span {
-    font-weight: bold; /*  Выделяем значения жирным /
-    color: #eee;    /  Светло-серый цвет текста */
-    }
-    #username{
+    background-color: #0a0a0a; /* Чёрный фон */
+    border: 1px solid #00829b; /* Тонкая синяя рамка */
+    border-radius: 8px;
+    font-family: 'Orbitron', sans-serif;
+    color: #eee;
+}
+
+/* Заголовок */
+#profileData h2 {
+    font-size: 1.5em;
+    color: #00829b;
     text-transform: uppercase;
-    }
-    
-    /*  Можно добавить стили для аватарки, если она будет изображением /
-    /
-    #profileData img {
+    border-bottom: 1px solid #00829b;
+    padding-bottom: 5px;
+}
+
+/* Текст */
+#profileData p {
+    font-size: 14px;
+    line-height: 1.4;
+    color: #ccc;
+    margin: 5px 0;
+}
+
+/* Выделение ключевых элементов */
+#profileData span {
+    font-weight: bold;
+    color: #ff534b;
+}
+
+/* Стиль имени пользователя */
+#username {
+    text-transform: uppercase;
+    color: #00829b;
+    font-weight: bold;
+}
+
+/* Аватарка */
+#profileData img {
     width: 100px;
     height: 100px;
     border-radius: 50%;
-    margin-bottom: 10px;
     display: block;
-    }
-    */
+    border: 1px solid #00829b;
+    object-fit: cover;
+}

@@ -1,27 +1,63 @@
-/* /var/www/rust_server_cyb3ria_xyz/static/css/upload.css */
-
+/* Стили для формы загрузки */
 #uploadForm {
-    /*  стили для формы загрузки */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     margin-bottom: 20px;
+    max-width: 600px; /* Ограничение ширины */
+    margin: 0 auto; /* Центрируем форму */
 }
 
+/* Стили для вывода результата загрузки */
 #result {
-    /*  стили для вывода результата загрузки */
-    margin-bottom: 20px;
     font-weight: bold;
+    color: #ff534b; /* Красный цвет для ошибок или уведомлений */
+    margin-bottom: 20px;
 }
 
+/* Стили для списка файлов */
 #fileList {
-    /*  стили для списка файлов */
     list-style: none;
     padding: 0;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
+/* Стили для каждого файла в списке */
 #fileList li {
     margin-bottom: 5px;
+    padding: 10px;
+    background-color: #2e2e2e; /* Тёмный фон для элементов */
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
+/* Стили для ссылки на файл */
 #fileList a {
-    /*  стили для ссылок на файлы */
-    color: #4CAF50; /*  зеленый цвет */
+    color: #4CAF50; /* Зеленый цвет для ссылок */
+    text-decoration: none;
+}
+
+/* Ховер эффект для ссылок */
+#fileList a:hover {
+    text-decoration: underline;
+}
+
+/* Стили для кнопки загрузки */
+button[type="submit"] {
+    background: #4CAF50;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-top: 10px;
+    width: 100%; /* Убираем ограничение по ширине */
+}
+
+/* Ховер эффект для кнопки */
+button[type="submit"]:hover {
+    background: #367c39;
 }

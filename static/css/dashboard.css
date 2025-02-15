@@ -1,11 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400&display=swap');
+
 .dashboard-info {
-    background: #333;
+    background: #0a0a0a; /* Глубокий чёрный */
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 8px;
     width: 100%;
     max-width: 800px;
+    border: 1px solid #00829b; /* Синяя тонкая рамка */
+    font-family: 'Orbitron', sans-serif;
+    color: #eeeeee; /* Светло-серый текст */
+    position: relative; /* Для позиционирования кнопки */
 }
+
+/* Заголовок */
 .dashboard-info h2 {
-    margin-top: 20px;
+    margin-top: 0; /* Убираем верхний отступ */
     font-size: 1.5em;
+    color: #00829b; /* Киберпанковый синий */
+    text-transform: uppercase;
+    border-bottom: 1px solid #00829b; /* Тонкая линия под заголовком */
+    padding-bottom: 5px;
+}
+
+/* Ховер эффект для кнопки */
+.menu-toggle:hover {
+    background-color: #00829b; /* Изменение цвета фона при наведении */
+    color: #ffffff; /* Изменение цвета текста на белый */
+}
+
+/* Дополнительно: если нужно изменить стили для текста внутри кнопки */
+.menu-toggle span {
+    font-size: 18px; /* Размер текста в кнопке */
+    color: inherit; /* Наследуем цвет текста от родителя (кнопки) */
 }

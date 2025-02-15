@@ -1,0 +1,61 @@
+"Таблица \"devices\":"
+created_at|timestamp with time zone|DEFAULT CURRENT_TIMESTAMP|||
+device_id|uuid|DEFAULT gen_random_uuid()|NOT NULL|PRIMARY KEY|
+ip_address|inet||NOT NULL||
+user_uuid|uuid||||FOREIGN KEY
+  Индекс: devices_pkey | CREATE UNIQUE INDEX devices_pkey ON public.devices USING btree (device_id)
+  Индекс: idx_devices_user_uuid | CREATE INDEX idx_devices_user_uuid ON public.devices USING btree (user_uuid)
+
+"Таблица \"files\":"
+file_id|uuid||NOT NULL|PRIMARY KEY|
+filename|character varying||NOT NULL||
+upload_time|timestamp with time zone|DEFAULT CURRENT_TIMESTAMP|||
+user_uuid|uuid||NOT NULL||FOREIGN KEY
+  Индекс: files_pkey | CREATE UNIQUE INDEX files_pkey ON public.files USING btree (file_id)
+
+"Таблица \"messages\":"
+created_at|timestamp with time zone|DEFAULT CURRENT_TIMESTAMP|NOT NULL||
+message|text||NOT NULL||
+timestamp|timestamp without time zone|DEFAULT CURRENT_TIMESTAMP|||
+user_uuid|uuid||||FOREIGN KEY
+  Индекс: idx_messages_created_at | CREATE INDEX idx_messages_created_at ON public.messages USING btree (created_at)
+
+"Таблица \"profiles\":"
+avatar|text||||
+bio|text||||
+user_uuid|uuid||NOT NULL|PRIMARY KEY|FOREIGN KEY
+  Индекс: profiles_pkey | CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (user_uuid)
+
+"Таблица \"sessions\":"
+device_id|uuid||||FOREIGN KEY
+expires_at|timestamp with time zone||||
+session_id|uuid||NOT NULL|PRIMARY KEY|
+user_uuid|uuid||||FOREIGN KEY
+  Индекс: sessions_pkey | CREATE UNIQUE INDEX sessions_pkey ON public.sessions USING btree (session_id)
+
+"Таблица \"storage_access\":"
+access_level|character varying||NOT NULL||
+storage_id|uuid||NOT NULL|PRIMARY KEY|FOREIGN KEY
+user_uuid|uuid||NOT NULL|PRIMARY KEY|FOREIGN KEY
+  Индекс: storage_access_pkey | CREATE UNIQUE INDEX storage_access_pkey ON public.storage_access USING btree (storage_id, user_uuid)
+
+"Таблица \"storages\":"
+created_at|timestamp with time zone|DEFAULT CURRENT_TIMESTAMP|||
+description|text||||
+name|character varying||NOT NULL||
+owner_uuid|uuid||NOT NULL||
+storage_id|uuid|DEFAULT gen_random_uuid()|NOT NULL|PRIMARY KEY|
+  Индекс: storages_pkey | CREATE UNIQUE INDEX storages_pkey ON public.storages USING btree (storage_id)
+
+"Таблица \"users\":"
+created_at|timestamp with time zone|DEFAULT CURRENT_TIMESTAMP|||
+id|integer|DEFAULT nextval('users_id_seq'::regclass)|NOT NULL|PRIMARY KEY|
+invitation_code|character varying||NOT NULL||
+password_hash|character varying||NOT NULL||
+user_uuid|uuid||||
+username|character varying||NOT NULL||
+  Индекс: users_pkey | CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
+  Индекс: users_username_key | CREATE UNIQUE INDEX users_username_key ON public.users USING btree (username)
+  Индекс: idx_users_username | CREATE INDEX idx_users_username ON public.users USING btree (username)
+  Индекс: users_user_uuid_key | CREATE UNIQUE INDEX users_user_uuid_key ON public.users USING btree (user_uuid)
+  Индекс: idx_users_user_uuid | CREATE INDEX idx_users_user_uuid ON public.users USING btree (user_uuid)
