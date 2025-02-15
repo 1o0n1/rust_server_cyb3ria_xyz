@@ -66,13 +66,15 @@
                 return response.json();
             })
             .then(data => {
-               console.log('Success:', data);
-               localStorage.setItem('session_id', data.session_id); // Сохраняем session_id в localStorage
-                if(data.username) {
-                    window.location.href = `/static/dashboard.html`; // После логина перенаправляем на dashboard
-                } else {
-                    document.getElementById('result').textContent = data.message;
-                }
+             console.log('Success:', data);
+             localStorage.setItem('session_id', data.session_id);
+             localStorage.setItem('user_uuid', data.user_uuid); // Сохраняем user_uuid в localStorage
+
+             if(data.username) {
+                  window.location.href = `/static/dashboard.html`;
+                  } else {
+                   document.getElementById('result').textContent = data.message;
+              }
             })
             .catch((error) => {
                 console.error('Error:', error);

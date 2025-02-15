@@ -1,6 +1,5 @@
-// src/handlers/auth/register.rs
-
 use crate::db::users::save_user_to_db;
+use crate::db::profiles::create_profile;
 use crate::handlers::auth::{map_validation_errors, RegistrationData, RegistrationResponse};
 use crate::models::User;
 use bcrypt::{hash, DEFAULT_COST};
@@ -67,6 +66,19 @@ pub async fn register_handler(
 
     match save_user_to_db(user).await {
         Ok(_) => {
+            // Создаем профиль после успешного сохранения пользователя
+            if let Err(e) = create_profile(&user_uuid).await {
+                error!("Failed to create profile: {}", e);
+                let response = RegistrationResponse {
+                    message: "Failed to create profile.".to_string(),
+                };
+                return Ok(warp::reply::with_status(
+                    warp::reply::json(&response),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+                .into_response());
+            }
+
             info!("User registered successfully. Redirecting to login page.");
             //  Редирект на страницу логина.  Здесь вместо JSON, простой редирект
             let resp = warp::reply::with_status(warp::reply::html(""), StatusCode::FOUND)
@@ -94,7 +106,6 @@ pub async fn register_handler(
         }
     }
 }
-
 pub fn register_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {
     warp::path("api")
         .and(warp::path("register"))

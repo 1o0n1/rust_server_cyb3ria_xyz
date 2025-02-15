@@ -1641,155 +1641,53 @@ pub async fn connect_to_db() -> Result<tokio_postgres::Client, Box<dyn StdError 
 
 /var/www/rust_server_cyb3ria_xyz/static/css/chat.css
 
-/* /var/www/rust_server_cyb3ria_xyz/static/css/chat.css */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400&display=swap');
 
 #messages {
     list-style-type: none;
     padding: 0;
     width: 100%;
-    max-width: 800px; /*  добавим  ограничение ширины */
+    max-width: 800px;
     max-height: 75vh;
     overflow-y: auto;
-    border: 1px solid #444;
-    background-color: #2e2e2e;
+    border: 1px solid #00829b; /* Тонкая синяя рамка */
+    background-color: #0a0a0a; /* Глубокий чёрный */
     margin-bottom: 20px;
+    font-family: 'Orbitron', sans-serif;
+    color: #eee;
+    position: relative; /* Позиционируем контейнер для вложенных элементов */
 }
 
+/* Сообщения */
 #messages li {
     padding: 10px;
     margin-bottom: 10px;
-    background-color: #2e2e2e; /* Сделали фон таким же, как у контейнера */
-    border-bottom: none; /* Убрали нижнюю границу */
+    background-color: #0a0a0a; /* Чёрный фон */
+    border-left: 2px solid #00829b; /* Тонкий синий акцент */
 }
 
-
-/var/www/rust_server_cyb3ria_xyz/static/css/dashboard.css
-
-.dashboard-info {
-    background: #333;
-    padding: 20px;
-    border-radius: 10px;
-    width: 100%;
-    max-width: 800px;
-}
-.dashboard-info h2 {
-    margin-top: 20px;
-    font-size: 1.5em;
+/* Чужие сообщения */
+.message-received {
+    color: #ccc;
+    border-left-color: #ff534b; /* Активный красный */
 }
 
-
-
-/var/www/rust_server_cyb3ria_xyz/static/css/forms.css
-
-/* /var/www/rust_server_cyb3ria_xyz/static/css/forms.css */
-/* Общие стили для форм и их элементов */
-
-form {
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Центрируем элементы по горизонтали */
-    width: 100%; /*  ширина */
-    max-width: 600px; /*  максимальная ширина */
-    margin: 0 auto; /*  центрируем форму на странице */
+/* Мои сообщения */
+.message-sent {
+    color: #00829b;
+    border-left-color: #00829b;
 }
 
-input[type="text"],
-input[type="password"],
-input[type="file"],
-textarea {
-    margin: 10px 0;
-    padding: 10px;
-    border: 1px solid #555;
-    background: #333;
-    color: #e0e0e0;
-    width: 100%; /*  ширина */
-    box-sizing: border-box; /*  чтобы padding не увеличивал ширину */
-    border-radius: 4px; /*  скругленные углы */
+/* Фиксируем отступы и положение */
+#messages li:last-child {
+    margin-bottom: 0;
 }
 
-button, input[type="submit"] {
-    padding: 10px 20px;
-    background: #4CAF50;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    border-radius: 4px;
-    width: auto; /*  ширина по содержимому */
-     margin-top: 10px;
-}
-
-button:hover, input[type="submit"]:hover {
-    background: #367c39;
-}
-
-/*  для инпутов в чате */
-#form {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-     max-width: 800px;
-    margin: 0 auto;
-}
-
-#input {
-    border: 1px solid #555;
-    padding: 10px;
-    width: 80%;
-    margin-right: 10px;
-    border-radius: 4px;
-    background-color: #333;
-    color: #e0e0e0;
-}
-
-#form > button {
-    background: #4CAF50;
-    border: none;
-    padding: 10px 20px;
-    color: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-     flex-shrink: 0; /* Запрещаем кнопке сжиматься */
-}
-
-
-/var/www/rust_server_cyb3ria_xyz/static/css/menu.css
-
-.main-menu {
-position: fixed;
-top: 0;
-left: 0;
-width: 250px;
-height: 100vh;
-background-color: #706f6f;
-transition: transform 0.3s ease;
-z-index: 100;
-overflow-y: auto;
-}
-
-/* Стили для десктопа (ПК) */
-@media (min-width: 769px) {
-    /* На ПК меню видно по умолчанию */
-    .main-menu {
-        transform: translateX(0);
-    }
-
-    /* При добавлении класса active меню сдвигается влево (скрывается) */
-    .main-menu.active {
-        transform: translateX(-100%);
-    }
-
-    /* Кнопка переключения меню всегда видна справа от меню */
-    .menu-toggle {
-        right: calc(250px + 10px); /* Устанавливаем отступ справа от меню */
-    }
-}
-.main-menu.active {
-transform: translateX(-100%);
-}
-.menu-toggle {
-    position: fixed;
-    top: 10px;
-    left: 260px; /* Находится рядом с меню */
+/* Если есть кнопки или элементы внутри #messages */
+.message-toggle {
+    position: absolute; /* Абсолютное позиционирование для фиксированного расположения */
+    top: 10px; /* Отступ сверху */
+    right: 10px; /* Отступ справа */
     background-color: #ddd;
     border: none;
     cursor: pointer;
@@ -1799,107 +1697,303 @@ transform: translateX(-100%);
     align-items: center;
     justify-content: center;
     font-size: 16px;
-    z-index: 200; /* Поверх меню */
-    transition: left 0.3s ease;
-    border-radius: 6px; /* Добавь скругление углов */
+    z-index: 200;
+    transition: background 0.3s ease;
+    border-radius: 6px;
 }
-/* Стили для мобильных устройств */
-@media (max-width: 768px) {
-    /* На мобильных меню скрыто по умолчанию */
-    .main-menu {
-        transform: translateX(-100%);
-        width: 250px;
-    }
 
-    /* При добавлении класса active меню появляется */
-    .main-menu.active {
-        transform: translateX(0);
-    }
 
-    /* Кнопка переключения меню всегда видна справа от меню */
-    .menu-toggle {
-        right: 10px; /* Кнопка остается справа от меню */
-    }
+
+/var/www/rust_server_cyb3ria_xyz/static/css/dashboard.css
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400&display=swap');
+
+.dashboard-info {
+    background: #0a0a0a; /* Глубокий чёрный */
+    padding: 20px;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 800px;
+    border: 1px solid #00829b; /* Синяя тонкая рамка */
+    font-family: 'Orbitron', sans-serif;
+    color: #eeeeee; /* Светло-серый текст */
+    position: relative; /* Для позиционирования кнопки */
 }
-/* Стили для элементов списка меню */
+
+/* Заголовок */
+.dashboard-info h2 {
+    margin-top: 0; /* Убираем верхний отступ */
+    font-size: 1.5em;
+    color: #00829b; /* Киберпанковый синий */
+    text-transform: uppercase;
+    border-bottom: 1px solid #00829b; /* Тонкая линия под заголовком */
+    padding-bottom: 5px;
+}
+
+/* Ховер эффект для кнопки */
+.menu-toggle:hover {
+    background-color: #00829b; /* Изменение цвета фона при наведении */
+    color: #ffffff; /* Изменение цвета текста на белый */
+}
+
+/* Дополнительно: если нужно изменить стили для текста внутри кнопки */
+.menu-toggle span {
+    font-size: 18px; /* Размер текста в кнопке */
+    color: inherit; /* Наследуем цвет текста от родителя (кнопки) */
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/static/css/forms.css
+
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    background: #0a0a0a; /* Глубокий чёрный */
+    padding: 20px;
+    border: 1px solid #00829b;
+    border-radius: 8px;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="file"],
+textarea {
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #00829b;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
+}
+
+button, input[type="submit"] {
+    padding: 10px 20px;
+    background: #ff534b;
+    color: #fff;
+    border: 1px solid #a10f03;
+    cursor: pointer;
+    border-radius: 4px;
+    width: auto;
+    margin-top: 10px;
+    text-transform: uppercase;
+    font-family: 'Orbitron', sans-serif;
+}
+
+button:hover, input[type="submit"]:hover {
+    background: #a10f03; /* Неактивный красный */
+    border-color: #ff534b;
+}
+
+/* Чат-форма */
+#form {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+#input {
+    border: 1px solid #00829b;
+    padding: 10px;
+    width: 80%;
+    margin-right: 10px;
+    border-radius: 4px;
+    background-color: #0a0a0a;
+    color: #e0e0e0;
+    font-family: 'Orbitron', sans-serif;
+}
+
+#form > button {
+    background: #ff534b;
+    border: 1px solid #a10f03;
+    padding: 10px 20px;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    flex-shrink: 0;
+    text-transform: uppercase;
+}
+
+#form > button:hover {
+    background: #a10f03;
+    border-color: #ff534b;
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/static/css/menu.css
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400&display=swap');
+
+.main-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200px;
+    height: 100vh;
+    background-color: #0a0a0a; /* Глубокий чёрный */
+    border-right: 1px solid #00829b; /* Тонкая синяя линия */
+    transition: transform 0.3s ease;
+    z-index: 100;
+    overflow-y: auto;
+    font-family: 'Orbitron', sans-serif;
+}
+
+/* Закрытое меню */
+.main-menu.active {
+    transform: translateX(-100%);
+}
+
+/* Кнопка открытия/закрытия */
+.menu-toggle {
+    position: fixed;
+    top: 20px; /* Фиксируем положение */
+    left: 210px;
+    background-color: #111;
+    color: #00829b;
+    border: 1px solid #00829b;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    z-index: 200;
+    transition: all 0.3s ease;
+    border-radius: 3px;
+}
+
+
+.menu-toggle:hover {
+    background-color: #00829b;
+    color: #0a0a0a;
+}
+
+/* Элементы списка */
 .main-menu ul {
-list-style: none;
-padding: 0;
-margin: 0;
+    list-style: none;
+    padding: 10px;
+    margin: 0;
 }
 
 .main-menu li {
-margin-bottom: 10px;
+    margin-bottom: 10px;
 }
 
+/* Ссылки и кнопки */
 .main-menu a,
 .main-menu button {
-color: #333;
-text-decoration: none;
-padding: 5px 10px;
-display: block;
-border-radius: 3px;
+    color: #a10f03; /* Неактивный красный */
+    text-decoration: none;
+    padding: 10px;
+    display: block;
+    font-size: 14px;
+    transition: 0.2s ease;
+    border-left: 2px solid transparent;
 }
 
-.main-menu a:hover,
-.main-menu button:hover {
-background-color: #555;
-color: #fff;
+/* Наведение */
+.main-menu a:hover {
+    color: #ff534b; /* Активный красный */
+    border-left: 2px solid #ff534b;
 }
 
+/* Активный элемент */
+.main-menu a.active {
+    color: #00829b;
+    border-left: 2px solid #00829b;
+}
+
+/* Кнопка выхода */
 .main-menu button {
-background-color: transparent;
-border: none;
-text-align: left;
+    background-color: transparent;
+    border: none;
+    text-align: left;
+    color: #a10f03; /* Неактивный красный */
+    font-size: 14px;
+    padding: 10px;
+    width: 100%;
+    cursor: pointer;
+    transition: 0.2s ease;
 }
+
+/* При наведении кнопка выхода становится красной */
+.main-menu button:hover {
+    background-color: #a10f03; /* Фон становится неактивно-красным */
+    color: #fff; /* Белый текст для контраста */
+}
+
 
 
 /var/www/rust_server_cyb3ria_xyz/static/css/profile.css
 
 #profileData {
-    max-width: 600px; /*  Максимальная ширина блока /
-    margin: 20px auto; /  Центрируем блок по горизонтали /
+    max-width: 600px;
+    margin: 0 auto;
     padding: 20px;
-    background-color: #2e2e2e; /  Тёмный фон, как в чате /
-    border: 1px solid #444; /  Тёмная рамка /
-    border-radius: 5px; /  Скругленные углы /
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5); /  Тень */
-    }
-    
-    #profileData p {
-    margin-bottom: 15px; /*  Отступ между строками /
-    line-height: 1.6; /  Увеличиваем межстрочный интервал */
-    }
-    
-    #profileData p:last-child {
-    margin-bottom: 0; /* Убираем отступ у последнего элемента */
-    }
-    
-    #profileData span {
-    font-weight: bold; /*  Выделяем значения жирным /
-    color: #eee;    /  Светло-серый цвет текста */
-    }
-    #username{
+    background-color: #0a0a0a; /* Чёрный фон */
+    border: 1px solid #00829b; /* Тонкая синяя рамка */
+    border-radius: 8px;
+    font-family: 'Orbitron', sans-serif;
+    color: #eee;
+}
+
+/* Заголовок */
+#profileData h2 {
+    font-size: 1.5em;
+    color: #00829b;
     text-transform: uppercase;
-    }
-    
-    /*  Можно добавить стили для аватарки, если она будет изображением /
-    /
-    #profileData img {
+    border-bottom: 1px solid #00829b;
+    padding-bottom: 5px;
+}
+
+/* Текст */
+#profileData p {
+    font-size: 14px;
+    line-height: 1.4;
+    color: #ccc;
+    margin: 5px 0;
+}
+
+/* Выделение ключевых элементов */
+#profileData span {
+    font-weight: bold;
+    color: #ff534b;
+}
+
+/* Стиль имени пользователя */
+#username {
+    text-transform: uppercase;
+    color: #00829b;
+    font-weight: bold;
+}
+
+/* Аватарка */
+#profileData img {
     width: 100px;
     height: 100px;
     border-radius: 50%;
-    margin-bottom: 10px;
     display: block;
-    }
-    */
+    border: 1px solid #00829b;
+    object-fit: cover;
+}
+
 
 
 /var/www/rust_server_cyb3ria_xyz/static/css/styles.css
 
-/* /var/www/rust_server_cyb3ria_xyz/static/css/styles.css */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400&display=swap');
 
-/* Общие стили, базовые стили для всего приложения */
 body {
     display: flex;
     flex-direction: column;
@@ -1907,58 +2001,101 @@ body {
     justify-content: flex-start;
     height: 100vh;
     margin: 0;
-    font-family: Arial, sans-serif;
-    background-color: #1e1e1e;
+    font-family: 'Orbitron', sans-serif;
+    background-color: #0a0a0a; /* Глубокий чёрный фон */
     color: #e0e0e0;
 }
 
 h1 {
-    font-size: 3em;
+    font-size: 2.5em;
     margin-bottom: 20px;
+    color: #00829b; /* Киберпанковый синий */
+    text-transform: uppercase;
+    letter-spacing: 2px;
 }
 
 a {
-    color: #4CAF50;
+    color: #ff534b; /* Активный красный */
     text-decoration: none;
     font-weight: bold;
-    display: block; /*  чтобы ссылки занимали всю ширину блока */
-    margin: 20px 0;
+    display: block;
+    margin: 15px 0;
+    transition: color 0.2s ease-in-out;
 }
 
 a:hover {
-    text-decoration: underline;
+    text-decoration: none;
+    color: #a10f03; /* Неактивный красный */
 }
+
 
 
 /var/www/rust_server_cyb3ria_xyz/static/css/upload.css
 
-/* /var/www/rust_server_cyb3ria_xyz/static/css/upload.css */
-
+/* Стили для формы загрузки */
 #uploadForm {
-    /*  стили для формы загрузки */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     margin-bottom: 20px;
+    max-width: 600px; /* Ограничение ширины */
+    margin: 0 auto; /* Центрируем форму */
 }
 
+/* Стили для вывода результата загрузки */
 #result {
-    /*  стили для вывода результата загрузки */
-    margin-bottom: 20px;
     font-weight: bold;
+    color: #ff534b; /* Красный цвет для ошибок или уведомлений */
+    margin-bottom: 20px;
 }
 
+/* Стили для списка файлов */
 #fileList {
-    /*  стили для списка файлов */
     list-style: none;
     padding: 0;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
+/* Стили для каждого файла в списке */
 #fileList li {
     margin-bottom: 5px;
+    padding: 10px;
+    background-color: #2e2e2e; /* Тёмный фон для элементов */
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
+/* Стили для ссылки на файл */
 #fileList a {
-    /*  стили для ссылок на файлы */
-    color: #4CAF50; /*  зеленый цвет */
+    color: #4CAF50; /* Зеленый цвет для ссылок */
+    text-decoration: none;
 }
+
+/* Ховер эффект для ссылок */
+#fileList a:hover {
+    text-decoration: underline;
+}
+
+/* Стили для кнопки загрузки */
+button[type="submit"] {
+    background: #4CAF50;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-top: 10px;
+    width: 100%; /* Убираем ограничение по ширине */
+}
+
+/* Ховер эффект для кнопки */
+button[type="submit"]:hover {
+    background: #367c39;
+}
+
 
 
 /var/www/rust_server_cyb3ria_xyz/static/js/menu.js
@@ -1987,7 +2124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
                 function updateButtonPosition() {
                     if (window.innerWidth >= 769) {
-                        menuToggle.style.left = mainMenu.classList.contains('active') ? '10px' : '260px';
+                        menuToggle.style.left = mainMenu.classList.contains('active') ? '10px' : '160px';
                     } else {
                         menuToggle.style.left = '10px';
                     }
@@ -2215,7 +2352,6 @@ document.addEventListener('DOMContentLoaded', () => {
 <body>
     <div id="menu-container"></div>
     <h1>Dashboard</h1>
-    
     <div class="dashboard-info">
         <p>Привет, <span id="username">User</span>!</p>
         <p>Статус соединения: <span id="connection-status">Loading...</span></p>
@@ -2345,7 +2481,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <title>Profile</title>
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="/static/css/menu.css">
-    <!--  <link rel="stylesheet" href="/static/css/forms.css">  Если нужен -->
+    <link rel="stylesheet" href="/static/css/forms.css"> 
     <link rel="stylesheet" href="/static/css/profile.css">  <!-- Если есть специфичные стили -->
 </head>
 <body>

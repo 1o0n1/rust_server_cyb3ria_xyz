@@ -118,9 +118,10 @@ pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<Re
 
     info!("User logged in successfully: {}", login.username);
     let response = LoginSuccessResponse {
-        message: "User logged in successfully.".to_string(),
-        username: login.username.to_string(),
-        session_id: session.session_id,
+    message: "User logged in successfully.".to_string(),
+    username: login.username.to_string(),
+    session_id: session.session_id,
+    user_uuid: user.user_uuid, // Добавляем user_uuid
     };
 
     let mut resp =

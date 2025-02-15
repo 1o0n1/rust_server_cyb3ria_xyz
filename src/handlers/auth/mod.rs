@@ -39,6 +39,7 @@ pub struct LoginSuccessResponse {
     pub message: String,
     pub username: String,
     pub session_id: Uuid,
+    pub user_uuid: Uuid,
 }
 
 impl Validate for RegistrationData {
@@ -133,3 +134,5 @@ fn map_validation_errors(errors: ValidationErrors) -> String {
     }
     result.trim().to_string()
 }
+
+

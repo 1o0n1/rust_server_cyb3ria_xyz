@@ -5,7 +5,7 @@ mod models;
 mod utils;
 
 use dotenv::dotenv;
-use handlers::auth::{login::login_route, logout::logout_route, register::register_route};
+use handlers::auth::{login::login_route, logout::logout_route, register};
 use handlers::chat::client_connection;
 use handlers::profile::profile_route;
 use handlers::upload::upload_route;
@@ -60,7 +60,7 @@ async fn main() {
         )
         .boxed();
 
-    let register_route = register_route().boxed();
+    let register_route = register::register_route().boxed();
     let login_route = login_route().boxed();
     let upload_route = upload_route().boxed();
     let files_route = files_route().boxed();

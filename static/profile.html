@@ -6,45 +6,147 @@
     <title>Profile</title>
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="/static/css/menu.css">
-    <link rel="stylesheet" href="/static/css/forms.css"> 
-    <link rel="stylesheet" href="/static/css/profile.css">  <!-- Если есть специфичные стили -->
+    <link rel="stylesheet" href="/static/css/forms.css">
+    <link rel="stylesheet" href="/static/css/profile.css">
 </head>
 <body>
     <div id="menu-container"></div>
     <h1>Profile</h1>
     <div id="profileData">
-      <p>Username: <span id="username"></span></p>
-      <p>Bio: <span id="bio"></span></p>
-      <p>Avatar: <span id="avatar"></span></p>
+        <img id="avatarImg" src="" alt="Avatar">
+        <img id="profileBannerImg" src="" alt="Profile Banner">
+        <p>Username: <span id="username"></span></p>
+        <p>Bio: <span id="bioDisplay"></span></p>
+        <p>Storage Access: <span id="storageAccess"></span></p>
     </div>
 
-    <script src="/static/js/menu.js"></script>
-    <script src="/static/js/scripts.js"></script>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      fetch('/api/profile', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-      })
-      .then(response => {
-          if (!response.ok) {
-              throw new Error('Network response was not ok');
-          }
-          return response.json();
-      })
-      .then(data => {
-            document.getElementById('username').textContent = data.username;
-            document.getElementById('bio').textContent = data.bio || 'No bio provided.';
-            document.getElementById('avatar').textContent = data.avatar || 'No avatar provided.';
-        })
-       .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('profileData').textContent = 'Failed to load profile.';
-        });
-     });
+    <h2>Edit Profile</h2>
+    <form id="editProfileForm">
+        <label for="bio">Bio:</label><br>
+        <textarea id="bio" name="bio"></textarea><br><br>
 
+        <label for="avatar">Avatar URL:</label><br>
+        <input type="text" id="avatar" name="avatar"><br><br>
+
+        <label for="profileBanner">Profile Banner URL:</label><br>
+        <input type="text" id="profileBanner" name="profileBanner"><br><br>
+
+        <label for="storageAccessSelect">Storage Access:</label><br>
+        <select id="storageAccessSelect" name="storageAccess">
+            <option value="Private">Private</option>
+            <option value="Public">Public</option>
+            <option value="SpecificUsers">Specific Users</option>
+        </select><br><br>
+
+        <label for="allowedViewers">Allowed Viewers (UUIDs, comma-separated):</label><br>
+        <input type="text" id="allowedViewers" name="allowedViewers"><br><br>
+
+        <button type="submit">Update Profile</button>
+    </form>
+
+    <script src="/static/js/menu.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const profileData = document.getElementById('profileData');
+            const editProfileForm = document.getElementById('editProfileForm');
+            const usernameSpan = document.getElementById('username');
+            const bioTextarea = document.getElementById('bio');
+            console.dir(bioTextarea); // Добавлено логирование
+            const avatarInput = document.getElementById('avatar');
+            const avatarImg = document.getElementById('avatarImg');
+            const profileBannerInput = document.getElementById('profileBanner');
+            const profileBannerImg = document.getElementById('profileBannerImg');
+            const storageAccessSelect = document.getElementById('storageAccessSelect');
+            const storageAccessSpan = document.getElementById('storageAccess');
+            const allowedViewersInput = document.getElementById('allowedViewers');
+
+            // Function to fetch profile data
+                        
+            function fetchProfile() {
+                const userUuid = localStorage.getItem('user_uuid');
+                if (!userUuid) {
+                    console.error('User UUID not found.');
+                    profileData.textContent = 'User UUID not found. Please log in.';
+                    return;
+                }
+
+                fetch(`/api/profile/${userUuid}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load profile');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    usernameSpan.textContent = data.username;
+                    bioTextarea.value = data.bio || '';
+                    bioDisplay.textContent = data.bio || '';
+                    avatarInput.value = data.avatar || '';
+                    avatarImg.src = data.avatar || '';
+                    profileBannerInput.value = data.profile_banner || '';
+                    profileBannerImg.src = data.profile_banner || '';
+                    storageAccessSelect.value = data.storage_access;
+                    storageAccessSpan.textContent = data.storage_access;
+                    allowedViewersInput.value = data.allowed_viewers ? data.allowed_viewers.join(', ') : '';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    profileData.textContent = 'Failed to load profile.';
+                });
+            }
+
+            // Function to update profile
+            function updateProfile(event) {
+                event.preventDefault();
+
+                const bio = bioTextarea.value;
+                const avatar = avatarInput.value;
+                const profileBanner = profileBannerInput.value;
+                const storageAccess = storageAccessSelect.value;
+                const allowedViewersInput = document.getElementById('allowedViewers').value;
+                const allowedViewers = allowedViewersInput.split(',').map(s => s.trim()).filter(s => s !== '');
+
+                console.log("Bio being sent:", bio);
+
+                fetch('/api/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bio: bio,
+                        avatar: avatar,
+                        profile_banner: profileBanner,
+                        storage_access: storageAccess,
+                        allowed_viewers: allowedViewers
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to update profile');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert('Profile updated successfully!');
+                    fetchProfile();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to update profile.');
+                });
+            }
+            
+
+            // Add event listeners
+            editProfileForm.addEventListener('submit', updateProfile);
+            fetchProfile();
+        });
     </script>
 </body>
 </html>

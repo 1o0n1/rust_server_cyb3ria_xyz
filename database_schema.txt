@@ -14,11 +14,11 @@ user_uuid|uuid||NOT NULL||FOREIGN KEY
   Индекс: files_pkey | CREATE UNIQUE INDEX files_pkey ON public.files USING btree (file_id)
 
 "Таблица \"messages\":"
-created_at|timestamp with time zone|DEFAULT CURRENT_TIMESTAMP|||
+created_at|timestamp with time zone|DEFAULT CURRENT_TIMESTAMP|NOT NULL||
 message|text||NOT NULL||
 timestamp|timestamp without time zone|DEFAULT CURRENT_TIMESTAMP|||
 user_uuid|uuid||||FOREIGN KEY
-  Индекс: idx_messages_timestamp | CREATE INDEX idx_messages_timestamp ON public.messages USING btree ("timestamp")
+  Индекс: idx_messages_created_at | CREATE INDEX idx_messages_created_at ON public.messages USING btree (created_at)
 
 "Таблица \"profiles\":"
 avatar|text||||
@@ -52,7 +52,6 @@ created_at|timestamp with time zone|DEFAULT CURRENT_TIMESTAMP|||
 id|integer|DEFAULT nextval('users_id_seq'::regclass)|NOT NULL|PRIMARY KEY|
 invitation_code|character varying||NOT NULL||
 password_hash|character varying||NOT NULL||
-user_id|integer|DEFAULT nextval('users_user_id_seq'::regclass)|NOT NULL||
 user_uuid|uuid||||
 username|character varying||NOT NULL||
   Индекс: users_pkey | CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
