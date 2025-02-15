@@ -1,0 +1,2596 @@
+/var/www/rust_server_cyb3ria_xyz/.env
+
+DATABASE_URL=postgres://cyb3ria:!Abs123@localhost/cyb3ria_db
+PORT=8081
+RUST_LOG=debug
+
+
+
+/var/www/rust_server_cyb3ria_xyz/Cargo.toml
+
+[package]
+name = "rust_server_cyb3ria_xyz"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+warp = "0.3"
+futures-util = "0.3"
+futures = "0.3"
+log = "0.4"
+env_logger = "0.9"
+dotenv = "0.15"
+tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] } # Объединили фичи здесь
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.0", features = ["serde", "v4"] }
+bcrypt = "0.14"
+ipnetwork = "0.20"
+chrono = { version = "0.4", features = ["serde"] } # Убрали дублирование chrono
+bytes = "1"
+validator = "0.16"
+
+
+/var/www/rust_server_cyb3ria_xyz/src/main.rs
+
+// src/main.rs
+mod db;
+mod handlers;
+mod models;
+mod utils;
+
+use dotenv::dotenv;
+use handlers::auth::{login::login_route, logout::logout_route, register::register_route};
+use handlers::chat::client_connection;
+use handlers::profile::profile_route;
+use handlers::upload::upload_route;
+use log::info;
+use std::sync::Arc;
+use std::sync::Mutex;
+use tokio::sync::broadcast;
+use warp::Filter;
+
+mod middleware;
+use handlers::files::files_route;
+type Clients = Arc<Mutex<std::collections::HashMap<String, usize>>>;
+type Sender = Arc<Mutex<broadcast::Sender<String>>>;
+
+use uuid::Uuid;
+#[tokio::main]
+async fn main() {
+    // Загрузка переменных окружения из .env файла
+    dotenv().ok();
+
+    // Инициализация логирования
+    env_logger::init();
+
+    // Логирование начала работы сервера
+    info!("Initializing server ...");
+
+    let clients: Clients = Arc::new(Mutex::new(std::collections::HashMap::new()));
+    let sender: Sender = Arc::new(Mutex::new(broadcast::channel(100).0));
+    let clients_clone = Arc::clone(&clients);
+    let sender_clone = Arc::clone(&sender);
+
+    let chat_route = warp::path("api")
+        .and(warp::path("ws"))
+        .and(warp::ws())
+        .and(warp::addr::remote())
+        .and(crate::middleware::auth::with_auth()) // Используем middleware для авторизации
+        .map(
+            move |ws: warp::ws::Ws, _addr: Option<std::net::SocketAddr>, user_uuid: Uuid| {
+                //user_uuid получаем из middleware
+                let clients_clone = Arc::clone(&clients_clone);
+                let sender_clone = Arc::clone(&sender_clone);
+                //let session_id = params.get("session_id").map(|s| s.to_string());  //session_id больше не нужен
+                ws.on_upgrade(move |socket| {
+                    client_connection(
+                        socket,
+                        clients_clone,
+                        sender_clone,
+                        Some(user_uuid.to_string()),
+                    ) //Передаём user_uuid в client_connection
+                })
+            },
+        )
+        .boxed();
+
+    let register_route = register_route().boxed();
+    let login_route = login_route().boxed();
+    let upload_route = upload_route().boxed();
+    let files_route = files_route().boxed();
+    let logout_route = logout_route().boxed();
+    let profile_route = profile_route().boxed();
+
+    let routes = chat_route
+        .or(register_route)
+        .or(login_route)
+        .or(upload_route)
+        .or(files_route)
+        .or(profile_route)
+        .or(logout_route);
+
+    info!("Starting server on 127.0.0.1:8081");
+    warp::serve(routes).run(([127, 0, 0, 1], 8081)).await;
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/utils.rs
+
+use uuid::Uuid;
+
+pub fn generate_client_id() -> String {
+    Uuid::new_v4().to_string()
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/models.rs
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct User {
+    pub username: String,
+    pub password_hash: String,
+    pub invitation_code: String,
+    pub user_uuid: Uuid,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Device {
+    pub device_id: Uuid,
+    pub user_uuid: Uuid,
+    pub ip_address: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Session {
+    pub session_id: Uuid,
+    pub user_uuid: Uuid,
+    pub device_id: Uuid,
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Profile {
+    pub user_uuid: Uuid,
+    pub bio: Option<String>,
+    pub avatar: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct ProfileResponse {
+    pub username: String,
+    pub bio: Option<String>,
+    pub avatar: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct File {
+    pub file_id: Uuid,
+    pub user_uuid: Uuid,
+    pub filename: String,
+    pub upload_time: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct FileInfo {
+    pub filename: String,
+    pub upload_time: String,
+    pub file_id: Uuid,
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/middleware/auth.rs
+
+// src/middleware/auth.rs
+use crate::db::sessions::find_session_by_session_id;
+use log::{debug, error};
+use uuid::Uuid;
+use warp::{http::StatusCode, Filter, Rejection};
+
+pub fn with_auth() -> impl Filter<Extract = (Uuid,), Error = Rejection> + Clone {
+    warp::cookie("session_id").and_then(|session_id: String| async move {
+        debug!("with_auth: session_id from cookie: {}", session_id);
+        let session_uuid = match Uuid::parse_str(&session_id) {
+            Ok(uuid) => {
+                debug!("with_auth: Parsed session_uuid: {}", uuid);
+                uuid
+            }
+            Err(e) => {
+                error!("with_auth: Failed to parse session_id: {}", e);
+                return Err(warp::reject::reject());
+            }
+        };
+
+        match find_session_by_session_id(&session_uuid).await {
+            Ok(Some(session)) => {
+                debug!("with_auth: Session found in DB: {:?}", session);
+                Ok(session.user_uuid) // Return user_uuid
+            }
+            Ok(None) => {
+                error!("with_auth: Session not found in DB");
+                Err(warp::reject::reject())
+            }
+            Err(e) => {
+                error!("with_auth: Error finding session in DB: {}", e);
+                Err(warp::reject::reject())
+            }
+        }
+    })
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/middleware/mod.rs
+
+pub mod auth;
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/handlers/auth/register.rs
+
+// src/handlers/auth/register.rs
+
+use crate::db::users::save_user_to_db;
+use crate::handlers::auth::{map_validation_errors, RegistrationData, RegistrationResponse};
+use crate::models::User;
+use bcrypt::{hash, DEFAULT_COST};
+use log::{debug, error, info};
+use std::net::SocketAddr;
+use uuid::Uuid;
+use validator::Validate;
+use warp::Reply;
+use warp::{http::StatusCode, reply::Response, Filter, Rejection};
+
+pub async fn register_handler(
+    registration: RegistrationData,
+    _peer_addr: SocketAddr,
+) -> Result<Response, Rejection> {
+    debug!("Received registration request: {:?}", registration);
+
+    // Валидация данных
+    if let Err(errors) = registration.validate() {
+        error!("Validation errors: {:?}", errors);
+        let error_message = map_validation_errors(errors);
+        let response = RegistrationResponse {
+            message: error_message,
+        };
+        return Ok(
+            warp::reply::with_status(warp::reply::json(&response), StatusCode::BAD_REQUEST)
+                .into_response(),
+        );
+    }
+
+    if registration.password != registration.repeat_password {
+        error!("Passwords do not match.");
+        let response = RegistrationResponse {
+            message: "Passwords do not match.".to_string(),
+        };
+        return Ok(
+            warp::reply::with_status(warp::reply::json(&response), StatusCode::BAD_REQUEST)
+                .into_response(),
+        );
+    }
+
+    let password_hash = match hash(registration.password, DEFAULT_COST) {
+        Ok(hash) => hash,
+        Err(e) => {
+            error!("Failed to hash password: {}", e);
+            let response = RegistrationResponse {
+                message: "Failed to hash password.".to_string(),
+            };
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&response),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+            .into_response());
+        }
+    };
+
+    let user_uuid = Uuid::new_v4();
+
+    let user = User {
+        username: registration.username,
+        password_hash,
+        invitation_code: registration.invitation_code,
+        user_uuid,
+    };
+
+    match save_user_to_db(user).await {
+        Ok(_) => {
+            info!("User registered successfully. Redirecting to login page.");
+            //  Редирект на страницу логина.  Здесь вместо JSON, простой редирект
+            let resp = warp::reply::with_status(warp::reply::html(""), StatusCode::FOUND)
+                .into_response(); //  Использовали HTML для редиректа.
+
+             let mut resp =
+                 warp::reply::with_status(warp::reply::json(&""), StatusCode::FOUND).into_response();
+
+             resp.headers_mut().insert(
+                 "Location",
+                 "/static/login.html".parse().unwrap(),
+             );
+             Ok(resp)
+        }
+        Err(e) => {
+            error!("Failed to save user to database: {}", e);
+            let response = RegistrationResponse {
+                message: "Failed to save user to database.".to_string(),
+            };
+            Ok(warp::reply::with_status(
+                warp::reply::json(&response),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+            .into_response())
+        }
+    }
+}
+
+pub fn register_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {
+    warp::path("api")
+        .and(warp::path("register"))
+        .and(warp::body::json())
+        .and(warp::addr::remote())
+        .and_then(
+            |registration: RegistrationData, addr: Option<SocketAddr>| async move {
+                let peer_addr = addr.expect("Failed to get peer address");
+                register_handler(registration, peer_addr).await
+            },
+        )
+}
+
+
+/var/www/rust_server_cyb3ria_xyz/src/handlers/auth/login.rs
+
+use crate::db::devices::find_device_by_ip_mac;
+use crate::db::devices::save_device_to_db;
+use crate::db::sessions::save_session_to_db;
+use crate::db::users::find_user_by_username;
+use crate::handlers::auth::{
+    map_validation_errors, LoginData, LoginResponse, LoginSuccessResponse,
+};
+use crate::models::{Device, Session};
+use bcrypt::verify;
+use chrono::{Duration, Utc};
+use log::{debug, error, info};
+use std::net::SocketAddr;
+use uuid::Uuid;
+use validator::Validate;
+use warp::Reply;
+use warp::{http::StatusCode, reply::Response, Filter, Rejection};
+
+pub async fn login_handler(login: LoginData, peer_addr: SocketAddr) -> Result<Response, Rejection> {
+    debug!("Received login request: {:?}", login);
+
+    // Валидация данных
+    if let Err(errors) = login.validate() {
+        error!("Validation errors: {:?}", errors);
+        let error_message = map_validation_errors(errors);
+        let response = LoginResponse {
+            message: error_message,
+            username: "".to_string(),
+        };
+        return Ok(
+            warp::reply::with_status(warp::reply::json(&response), StatusCode::BAD_REQUEST)
+                .into_response(),
+        );
+    }
+
+    let user = match find_user_by_username(&login.username).await {
+        Ok(user) => user,
+        Err(e) => {
+            error!("Failed to find user: {}", e);
+            let response = LoginResponse {
+                message: "Failed to find user.".to_string(),
+                username: "".to_string(),
+            };
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&response),
+                StatusCode::UNAUTHORIZED,
+            )
+            .into_response());
+        }
+    };
+
+    match verify(&login.password, &user.password_hash) {
+        Ok(valid) => {
+            if !valid {
+                error!("Invalid password.");
+                let response = LoginResponse {
+                    message: "Invalid password.".to_string(),
+                    username: "".to_string(),
+                };
+                return Ok(warp::reply::with_status(
+                    warp::reply::json(&response),
+                    StatusCode::UNAUTHORIZED,
+                )
+                .into_response());
+            }
+        }
+        Err(e) => {
+            error!("Failed to verify password: {}", e);
+            let response = LoginResponse {
+                message: "Failed to verify password.".to_string(),
+                username: "".to_string(),
+            };
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&response),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+            .into_response());
+        }
+    }
+
+    let device = match find_device_by_ip_mac(&peer_addr.ip().to_string()).await {
+        Ok(Some(device)) => device,
+        Ok(None) => {
+            let device = Device {
+                device_id: Uuid::new_v4(),
+                user_uuid: user.user_uuid,
+                ip_address: peer_addr.ip().to_string(),
+            };
+            if let Err(e) = save_device_to_db(device.clone()).await {
+                error!("Failed to save device to database: {}", e);
+            }
+            device
+        }
+        Err(e) => {
+            error!("Failed to find device: {}", e);
+            let response = LoginResponse {
+                message: "Failed to find device.".to_string(),
+                username: "".to_string(),
+            };
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&response),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+            .into_response());
+        }
+    };
+
+    let session_id = Uuid::new_v4(); // Generate session ID
+    let session = Session {
+        session_id,
+        user_uuid: user.user_uuid,
+        device_id: device.device_id,
+        expires_at: Some(Utc::now() + Duration::hours(1)),
+    };
+
+    if let Err(e) = save_session_to_db(session.clone()).await {
+        error!("Failed to save session to database: {}", e);
+    }
+
+    info!("User logged in successfully: {}", login.username);
+    let response = LoginSuccessResponse {
+        message: "User logged in successfully.".to_string(),
+        username: login.username.to_string(),
+        session_id: session.session_id,
+    };
+
+    let mut resp =
+        warp::reply::with_status(warp::reply::json(&response), StatusCode::OK).into_response();
+
+    // **Add the following code:**
+    resp.headers_mut().insert(
+        "Set-Cookie",
+        format!(
+            "session_id={}; HttpOnly; Secure; SameSite=Strict; Path=/",
+            session_id
+        )
+        .parse()
+        .unwrap(),
+    );
+
+    Ok(resp)
+}
+
+pub fn login_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {
+    warp::path("api")
+        .and(warp::path("login"))
+        .and(warp::body::json())
+        .and(warp::addr::remote())
+        .and_then(|login: LoginData, addr: Option<SocketAddr>| async move {
+            let peer_addr = addr.expect("Failed to get peer address");
+            login_handler(login, peer_addr).await
+        })
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/handlers/auth/logout.rs
+
+// src/handlers/auth/logout.rs
+
+use log::{error, info};
+use uuid::Uuid;
+use warp::{http::StatusCode, reply::Response, Filter, Rejection, Reply};
+
+pub async fn logout_handler(user_uuid: Uuid) -> Result<Response, Rejection> {
+    //  Принимаем user_uuid вместо session_id
+    info!("Received logout request for user_uuid: {}", user_uuid);
+
+    // TODO: Удалить сессию из базы данных (реализуйте функцию в db/sessions.rs)
+    if let Err(e) = crate::db::sessions::delete_session_by_session_id(&user_uuid).await {
+        error!("Failed to delete session: {}", e);
+        return Ok(warp::reply::with_status(
+            warp::reply::json(&"Logout failed"),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+        .into_response());
+    }
+
+    let mut resp = warp::reply::with_status(
+        warp::reply::json(&"Logged out successfully"),
+        StatusCode::OK,
+    )
+    .into_response();
+
+    // Очистить куки
+    resp.headers_mut().insert(
+        "Set-Cookie",
+        "session_id=; Max-Age=0; Path=/; SameSite=Strict".to_string()
+            .parse()
+            .unwrap(),
+    );
+
+    Ok(resp)
+}
+
+pub fn logout_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {
+    warp::path("api")
+        .and(warp::path("logout"))
+        .and(crate::middleware::auth::with_auth()) // Используем middleware для авторизации
+        .and_then(|user_uuid: Uuid| async move {
+            // Получаем user_uuid из middleware
+            logout_handler(user_uuid).await
+        })
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/handlers/auth/mod.rs
+
+pub mod login;
+pub mod logout;
+pub mod register;
+
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+use uuid::Uuid;
+use validator::{Validate, ValidationError, ValidationErrors};
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct RegistrationData {
+    pub username: String,
+    pub password: String,
+    pub repeat_password: String,
+    pub invitation_code: String,
+    pub ip_address: String,
+    pub mac_address: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct RegistrationResponse {
+    pub message: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct LoginData {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct LoginResponse {
+    pub message: String,
+    pub username: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct LoginSuccessResponse {
+    pub message: String,
+    pub username: String,
+    pub session_id: Uuid,
+}
+
+impl Validate for RegistrationData {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut errors = ValidationErrors::new();
+
+        if self.username.len() < 3 || self.username.len() > 16 {
+            let mut error = ValidationError::new("length");
+            error.message = Some(
+                "Username must be between 3 and 16 characters"
+                    .to_string()
+                    .into(),
+            );
+            errors.add("username", error);
+        }
+        if self.password.len() < 6 || self.password.len() > 16 {
+            let mut error = ValidationError::new("length");
+            error.message = Some(
+                "Password must be between 6 and 16 characters"
+                    .to_string()
+                    .into(),
+            );
+            errors.add("password", error);
+        }
+        if self.repeat_password.len() < 6 || self.repeat_password.len() > 16 {
+            let mut error = ValidationError::new("length");
+            error.message = Some(
+                "Repeat password must be between 6 and 16 characters"
+                    .to_string()
+                    .into(),
+            );
+            errors.add("repeat_password", error);
+        }
+        if self.invitation_code.len() < 3 || self.invitation_code.len() > 16 {
+            let mut error = ValidationError::new("length");
+            error.message = Some(
+                "Invitation code must be between 3 and 16 characters"
+                    .to_string()
+                    .into(),
+            );
+            errors.add("invitation_code", error);
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+}
+
+impl Validate for LoginData {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut errors = ValidationErrors::new();
+
+        if self.username.len() < 3 || self.username.len() > 16 {
+            let mut error = ValidationError::new("length");
+            error.message = Some(
+                "Username must be between 3 and 16 characters"
+                    .to_string()
+                    .into(),
+            );
+            errors.add("username", error);
+        }
+        if self.password.len() < 6 || self.password.len() > 16 {
+            let mut error = ValidationError::new("length");
+            error.message = Some(
+                "Password must be between 6 and 16 characters"
+                    .to_string()
+                    .into(),
+            );
+            errors.add("password", error);
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+}
+
+fn map_validation_errors(errors: ValidationErrors) -> String {
+    let mut result = String::new();
+    for (_, field_errors) in errors.field_errors() {
+        for error in field_errors {
+            result.push_str(&format!(
+                "{} ",
+                error.message.as_ref().unwrap_or(&Cow::from("Invalid value"))
+            ));
+        }
+    }
+    result.trim().to_string()
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/handlers/chat.rs
+
+use crate::db::messages::save_message_to_db;
+use crate::db::send_message_history;
+use crate::utils::generate_client_id;
+use futures_util::stream::StreamExt;
+use futures_util::SinkExt;
+use log::{debug, error, info};
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+use tokio::sync::broadcast;
+use tokio::sync::Mutex as TokioMutex;
+use tokio::time::{interval, Duration as TokioDuration};
+use uuid::Uuid;
+use warp::ws::{Message, WebSocket};
+
+type Clients = Arc<Mutex<std::collections::HashMap<String, usize>>>;
+type Sender = Arc<Mutex<broadcast::Sender<String>>>;
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+struct ClientMessage {
+    message: String,
+    ip: String,
+    mac: String,
+}
+
+pub async fn client_connection(
+    ws: WebSocket,
+    clients: Clients,
+    sender: Sender,
+    user_uuid: Option<String>,
+) {
+    let (client_ws_sender, mut client_ws_rcv) = ws.split();
+    let client_ws_sender = Arc::new(TokioMutex::new(client_ws_sender));
+
+    let user_uuid = match user_uuid {
+        Some(user_uuid) => user_uuid,
+        None => {
+            error!("User ID is missing.");
+            return;
+        }
+    };
+
+    let user_uuid_parsed = match Uuid::parse_str(&user_uuid) {
+        Ok(uuid) => uuid,
+        Err(e) => {
+            error!("Failed to parse user ID: {}", e);
+            return;
+        }
+    };
+
+    let user = match crate::db::users::find_user_by_uuid(&user_uuid_parsed).await {
+        Ok(user) => user,
+        Err(e) => {
+            error!("Failed to find user by UUID: {}", e);
+            return;
+        }
+    };
+    let username = user.username;
+
+    let client_id = {
+        let mut clients = clients.lock().unwrap();
+        let client_id = generate_client_id();
+        clients.insert(client_id.clone(), 0);
+        client_id
+    };
+
+    info!(
+        "New client connected with ID: {}, username: {}",
+        client_id, username
+    );
+
+    // Отправляем историю сообщений
+    if let Err(e) = send_message_history(client_ws_sender.clone()).await {
+        error!("Failed to send message history: {}", e);
+    }
+
+    let mut rx = sender.lock().unwrap().subscribe();
+    let username_clone = username.clone();
+    let clients_clone = Arc::clone(&clients);
+    let client_id_clone = client_id.clone();
+
+    let ping_interval = TokioDuration::from_secs(30);
+    let mut ping_timer = interval(ping_interval);
+
+    let client_ws_sender_task = Arc::clone(&client_ws_sender);
+
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                _ = ping_timer.tick() => {
+                    if let Err(e) = client_ws_sender_task.lock().await.send(Message::ping(vec![])).await {
+                        error!("Failed to send ping message: {}", e);
+                        let mut clients = clients_clone.lock().unwrap();
+                        clients.remove(&client_id_clone);
+                        info!("Client disconnected with ID: {}, username: {}", client_id_clone, username_clone);
+                        break;
+                    }
+                }
+                Ok(message) = rx.recv() => {
+                    debug!("Broadcasting message: {}", message);
+                    if let Err(e) = client_ws_sender_task.lock().await.send(Message::text(message)).await {
+                        error!("Failed to send message: {}", e);
+                        let mut clients = clients_clone.lock().unwrap();
+                        clients.remove(&client_id_clone);
+                        info!("Client disconnected with ID: {}, username: {}", client_id_clone, username_clone);
+                        break;
+                    }
+                }
+            }
+        }
+    });
+
+    while let Some(result) = client_ws_rcv.next().await {
+        let msg = if let Ok(msg) = result {
+            if msg.is_text() {
+                let msg_str = msg.to_str().unwrap().to_owned();
+                debug!("Received raw message: {}", msg_str);
+
+                match serde_json::from_str::<ClientMessage>(&msg_str) {
+                    Ok(client_message) => {
+                        debug!(
+                            "Received message from client {}: {}",
+                            username, client_message.message
+                        );
+
+                        if let Err(e) =
+                            save_message_to_db(&client_message.message, user_uuid_parsed).await
+                        {
+                            error!("Failed to save message to database: {}", e);
+                        }
+
+                        let formatted_message = format!("{}: {}", username, client_message.message);
+                        formatted_message
+                    }
+                    Err(e) => {
+                        error!("Failed to deserialize message: {}", e);
+                        continue;
+                    }
+                }
+            } else if msg.is_close() {
+                info!(
+                    "Client disconnected with ID: {}, username: {}",
+                    client_id, username
+                );
+                let mut clients = clients.lock().unwrap();
+                clients.remove(&client_id);
+                break;
+            } else {
+                continue;
+            }
+        } else {
+            break;
+        };
+
+        if let Err(e) = sender.lock().unwrap().send(msg) {
+            error!("Failed to send message to broadcast: {}", e);
+        }
+    }
+
+    if let Err(e) = client_ws_sender.lock().await.close().await {
+        error!("Failed to close client connection: {}", e);
+    }
+
+    let mut clients = clients.lock().unwrap();
+    clients.remove(&client_id);
+    info!(
+        "Client disconnected with ID: {}, username: {}",
+        client_id, username
+    );
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/handlers/upload.rs
+
+// src/handlers/upload.rs
+use warp::Reply;
+use warp::{Filter, Rejection, http::StatusCode, reply::Response};
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
+use futures_util::StreamExt;
+use std::path::Path;
+use serde::{Deserialize, Serialize};
+use log::{info, error, debug};
+use bytes::Buf;
+use uuid::Uuid;
+use crate::db::files::save_file_info;
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+struct UploadResponse {
+    message: String,
+}
+pub async fn upload_handler(
+    mut form: warp::multipart::FormData,
+    user_uuid: Uuid,
+) -> Result<Response, Rejection> {
+    debug!("Received file upload request");
+
+    while let Some(item) = form.next().await {
+        let mut part = match item {
+            Ok(part) => part,
+            Err(e) => {
+                error!("Failed to parse form data: {}", e);
+                let response = UploadResponse {
+                    message: "Failed to parse form data".to_string(),
+                };
+                return Ok(warp::reply::with_status(
+                    warp::reply::json(&response),
+                    StatusCode::BAD_REQUEST,
+                )
+                .into_response());
+            }
+        };
+
+        if part.name() == "file" {
+            let file_name = match part.filename() {
+                Some(file_name) => file_name.to_string(),
+                None => {
+                    error!("Failed to extract filename");
+                    let response = UploadResponse {
+                        message: "Failed to extract filename".to_string(),
+                    };
+                    return Ok(warp::reply::with_status(
+                        warp::reply::json(&response),
+                        StatusCode::BAD_REQUEST,
+                    )
+                    .into_response());
+                }
+            };
+            let file_path =
+                Path::new("/var/www/rust_server_cyb3ria_xyz/uploaded").join(&file_name); // Использование абсолютного пути
+            let file_path_str = file_path.to_str().unwrap();
+
+            let mut file = match File::create(&file_path).await {
+                Ok(file) => file,
+                Err(e) => {
+                    error!("Failed to create file: {}", e);
+                    let response = UploadResponse {
+                        message: "Failed to create file.".to_string(),
+                    };
+                    return Ok(warp::reply::with_status(
+                        warp::reply::json(&response),
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                    .into_response());
+                }
+            };
+
+            while let Some(chunk) = part.data().await {
+                let chunk = match chunk {
+                    Ok(chunk) => chunk,
+                    Err(e) => {
+                        error!("Failed to read chunk: {}", e);
+                        let response = UploadResponse {
+                            message: "Failed to read chunk".to_string(),
+                        };
+                        return Ok(warp::reply::with_status(
+                            warp::reply::json(&response),
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                        )
+                        .into_response());
+                    }
+                };
+
+                if let Err(e) = file.write_all(chunk.chunk()).await {
+                    error!("Failed to write to file: {}", e);
+                    let response = UploadResponse {
+                        message: "Failed to write to file".to_string(),
+                    };
+                    return Ok(warp::reply::with_status(
+                        warp::reply::json(&response),
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                    .into_response());
+                }
+            }
+
+            info!("File saved successfully: {}", file_path_str);
+
+            // Save file info to database
+            if let Err(e) = save_file_info(&file_name, user_uuid).await {
+                // Pass user_uuid
+                error!("Failed to save file info to database: {}", e);
+            }
+            let response = UploadResponse {
+                message: "Uploaded succesfully!".to_string(),
+            };
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&response),
+                StatusCode::OK,
+            )
+            .into_response());
+        }
+    }
+
+    let response = UploadResponse {
+        message: "No file found in the form data".to_string(),
+    };
+    Ok(
+        warp::reply::with_status(warp::reply::json(&response), StatusCode::BAD_REQUEST)
+            .into_response(),
+    )
+
+}
+
+pub fn upload_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {
+    warp::path("api")
+        .and(warp::path("upload"))
+        .and(warp::multipart::form())
+        .and(crate::middleware::auth::with_auth()) // Add auth middleware
+        .and_then(|form: warp::multipart::FormData, user_uuid: Uuid| async move {
+            // Get user_uuid
+            upload_handler(form, user_uuid).await // Pass user_uuid
+        })
+}
+
+
+/var/www/rust_server_cyb3ria_xyz/src/handlers/profile.rs
+
+// src/handlers/profile.rs
+use crate::db::profiles::{create_profile, get_profile_by_user_uuid};
+use crate::db::users::find_user_by_uuid;
+use crate::models::ProfileResponse;
+use log::{debug, error};
+use uuid::Uuid;
+use warp::Reply;
+use warp::{http::StatusCode, reply::Response, Filter, Rejection};
+
+pub async fn profile_handler(user_uuid: Uuid) -> Result<Response, Rejection> {
+    debug!("Received profile request for user_uuid: {}", user_uuid);
+
+    // Сначала пробуем получить профиль из БД
+    let profile = match get_profile_by_user_uuid(&user_uuid).await {
+        Ok(Some(profile)) => profile,
+        Ok(None) => {
+            // Если профиля нет, создаем его
+            if let Err(e) = create_profile(&user_uuid).await {
+                error!("Failed to create profile: {}", e);
+                return Ok(warp::reply::with_status(
+                    warp::reply::json(&"Failed to create profile"),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+                .into_response());
+            }
+            // Получаем созданный профиль
+            get_profile_by_user_uuid(&user_uuid).await.unwrap().unwrap()
+        }
+        Err(e) => {
+            error!("Failed to get profile: {}", e);
+            return Ok(warp::reply::with_status(
+                warp::reply::json(&"Failed to get profile"),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+            .into_response());
+        }
+    };
+
+    // Получаем имя пользователя
+    let user = find_user_by_uuid(&user_uuid).await.map_err(|e| {
+        error!("Failed to get user: {}", e);
+        warp::reject::reject()
+    })?;
+
+    let profile_response = ProfileResponse {
+        username: user.username,
+        bio: profile.bio,
+        avatar: profile.avatar,
+    };
+
+    Ok(
+        warp::reply::with_status(warp::reply::json(&profile_response), StatusCode::OK)
+            .into_response(),
+    )
+}
+
+pub fn profile_route() -> impl Filter<Extract = (Response,), Error = Rejection> + Clone {
+    warp::path("api")
+        .and(warp::path("profile"))
+        .and(crate::middleware::auth::with_auth()) // Используем middleware для авторизации
+        .and_then(|user_uuid: Uuid| async move { profile_handler(user_uuid).await })
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/handlers/files.rs
+
+// src/handlers/files.rs
+use crate::db::files::get_files_by_user_uuid;
+use crate::models::FileInfo;
+use log::{debug, error};
+use uuid::Uuid;
+use warp::{http::StatusCode, reply::Json, reply::Response, Filter, Rejection};
+pub async fn get_files_handler(user_uuid: Uuid) -> Result<Json, Rejection> {
+    debug!("Received request for files for user_uuid: {}", user_uuid);
+
+    match get_files_by_user_uuid(user_uuid).await {
+        Ok(files) => {
+            let file_info: Vec<FileInfo> = files.into_iter().collect();
+            Ok(warp::reply::json(&file_info))
+        }
+        Err(e) => {
+            error!("Failed to get files: {}", e);
+            Err(warp::reject::reject())
+        }
+    }
+}
+
+pub fn files_route() -> impl Filter<Extract = (Json,), Error = Rejection> + Clone {
+    warp::path("api")
+        .and(warp::path("files"))
+        .and(crate::middleware::auth::with_auth())
+        .and_then(|user_uuid: Uuid| async move { get_files_handler(user_uuid).await })
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/handlers/mod.rs
+
+pub mod auth;
+pub mod chat;
+pub mod files;
+pub mod profile;
+pub mod upload;
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/db/messages.rs
+
+use bytes::BytesMut;
+use chrono::{DateTime, Utc};
+use futures_util::SinkExt;
+use log::{debug, error};
+use std::error::Error as StdError;
+use std::sync::Arc;
+use tokio::sync::Mutex as TokioMutex;
+use tokio_postgres::types::ToSql;
+use tokio_postgres::types::Type;
+use uuid::Uuid;
+use warp::ws::{Message, WebSocket};
+use crate::db::connect_to_db;
+
+
+// Обертка для DateTime<Utc>, чтобы обойти "orphan rule"
+#[derive(Debug, Copy, Clone)]
+struct Timestamp(DateTime<Utc>);
+
+impl ToSql for Timestamp {
+    tokio_postgres::types::accepts!(TIMESTAMP, TIMESTAMPTZ);
+    tokio_postgres::types::to_sql_checked!();
+
+    fn to_sql(
+        &self,
+        _type: &Type,
+        out: &mut BytesMut,
+    ) -> Result<tokio_postgres::types::IsNull, Box<dyn StdError + Sync + Send>> {
+        let timestamp = self.0.timestamp();
+        (timestamp).to_sql(_type, out) // Убрали .map_err
+    }
+}
+
+/// Экранирует строку для безопасного отображения в HTML
+fn escape_html(text: &str) -> String {
+    text.replace("&", "&amp")
+        .replace("<", "&lt")
+        .replace(">", "&gt")
+        .replace("\"", "&quot")
+        .replace("'", "&apos;")
+}
+
+/// Сохраняет сообщение в базу данных
+pub async fn save_message_to_db(
+    message: &str,
+    user_uuid: Uuid,
+) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;
+
+    
+
+    debug!(
+        "Saving message to database: {}, from user: {}",
+        message, user_uuid
+    );
+
+    client
+        .execute(
+            "INSERT INTO messages (message, user_uuid, created_at) VALUES ($1, $2, NOW())",
+            &[&message, &user_uuid],
+        )
+        .await?;
+
+    Ok(())
+}
+
+ /// Отправляет историю сообщений клиенту
+pub async fn send_message_history(
+    client_ws_sender: Arc<TokioMutex<futures_util::stream::SplitSink<WebSocket, Message>>>,
+) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;
+
+    
+
+    let rows = client
+        .query(
+            "SELECT message, user_uuid FROM messages ORDER BY created_at DESC LIMIT 50",
+            &[],
+        )
+        .await?;
+
+    for row in rows {
+        let message: String = row.get(0);
+        // Получаем user_uuid, обрабатывая возможность NULL значения
+        let user_uuid: Option<Uuid> = row.get(1);
+
+        let formatted_message = match user_uuid {
+            Some(uuid) => {
+                // Получаем имя пользователя по user_uuid
+                let username_result = client
+                    .query_one("SELECT username FROM users WHERE user_uuid = $1", &[&uuid])
+                    .await;
+                match username_result {
+                    Ok(row) => {
+                        let username: String = row.get(0);
+                        let escaped_username = escape_html(&username); // Экранируем имя пользователя
+                        format!("{}: {}", escaped_username, message)
+                    }
+                    Err(e) => {
+                        error!("Failed to get username from database: {}", e);
+                        format!("Unknown User: {}", message)
+                    }
+                }
+            }
+            None => format!("Unknown User: {}", message), // Обработка NULL значения
+        };
+
+        if let Err(e) = client_ws_sender.lock().await.send(Message::text(formatted_message)).await
+        {
+            error!("Failed to send message: {}", e);
+        }
+    }
+
+    Ok(())
+}
+
+
+/var/www/rust_server_cyb3ria_xyz/src/db/users.rs
+
+use crate::models::User;
+use log::debug;
+use std::error::Error as StdError;
+use uuid::Uuid;
+use crate::db::connect_to_db;
+
+/// Сохраняет пользователя в базу данных
+pub async fn save_user_to_db(user: User) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;  
+
+
+    debug!("Saving user to database: {}", user.username);
+
+    client.execute(
+        "INSERT INTO users (username, password_hash, invitation_code, user_uuid) VALUES ($1, $2, $3, $4)",
+        &[&user.username, &user.password_hash, &user.invitation_code, &user.user_uuid],
+    )
+    .await?;
+
+    Ok(())
+}
+
+/// Ищет пользователя по имени
+pub async fn find_user_by_username(
+    username: &str,
+) -> Result<User, Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;  
+
+    debug!("Finding user in database by username: {}", username);
+
+    let row = client
+        .query_one("SELECT username, password_hash, invitation_code, user_uuid FROM users WHERE username = $1", &[&username])
+        .await?;
+
+    let user = User {
+        username: row.get(0),
+        password_hash: row.get(1),
+        invitation_code: row.get(2),
+        user_uuid: row.get(3),
+    };
+
+    Ok(user)
+}
+
+/// Ищет пользователя по UUID
+pub async fn find_user_by_uuid(user_uuid: &Uuid) -> Result<User, Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;  
+
+    debug!("Finding user in database by user_uuid: {}", user_uuid);
+
+    let row = client
+        .query_one("SELECT username, password_hash, invitation_code, user_uuid FROM users WHERE user_uuid = $1", &[&user_uuid])
+        .await?;
+
+    let user = User {
+        username: row.get(0),
+        password_hash: row.get(1),
+        invitation_code: row.get(2),
+        user_uuid: row.get(3),
+    };
+
+    Ok(user)
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/db/devices.rs
+
+use log::{debug, error};
+use std::error::Error as StdError;
+use std::net::IpAddr; // Импортируем функцию
+use crate::db::connect_to_db; // Правильный импорт
+use crate::models::Device; // Импортируем функцию
+
+/// Сохраняет устройство в базу данных
+pub async fn save_device_to_db(device: Device) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;
+
+    debug!("Saving device to database: {:?}", device);
+
+    client
+        .execute(
+            "INSERT INTO devices (device_id, user_uuid, ip_address) VALUES ($1, $2, $3)",
+            &[
+                &device.device_id,
+                &device.user_uuid,
+                &device.ip_address.parse::<IpAddr>().unwrap(),
+            ],
+        )
+        .await?;
+
+    Ok(())
+}
+
+/// Ищет устройство по IP-адресу
+pub async fn find_device_by_ip_mac(
+    ip_address: &str,
+) -> Result<Option<Device>, Box<dyn StdError + Send + Sync>> {
+    use std::net::IpAddr;
+    let client = connect_to_db().await?;
+
+    debug!("Finding device by IP: {}", ip_address);
+
+    let ip_addr: IpAddr = ip_address.parse().map_err(|e| {
+        error!("Failed to parse IP address: {}", e);
+        e
+    })?;
+
+    let row = client
+        .query_opt(
+            "SELECT device_id, user_uuid, ip_address FROM devices WHERE ip_address = $1",
+            &[&ip_addr],
+        )
+        .await?;
+
+    if let Some(row) = row {
+        let device = Device {
+            device_id: row.get(0),
+            user_uuid: row.get(1),
+            ip_address: row.get::<_, IpAddr>(2).to_string(),
+        };
+        Ok(Some(device))
+    } else {
+        Ok(None)
+    }
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/db/sessions.rs
+
+use crate::db::connect_to_db;
+use crate::models::Session;
+use bytes::BytesMut;
+use chrono::{DateTime, Utc};
+use log::debug;
+use std::error::Error as StdError;
+use std::result::Result;
+use tokio_postgres::types::{ToSql, Type};
+use uuid::Uuid;
+
+
+// Обертка для DateTime<Utc>, чтобы обойти "orphan rule"
+#[derive(Debug, Copy, Clone)]
+struct Timestamp(DateTime<Utc>);
+
+impl ToSql for Timestamp {
+    tokio_postgres::types::accepts!(TIMESTAMP, TIMESTAMPTZ);
+    tokio_postgres::types::to_sql_checked!();
+
+    fn to_sql(
+        &self,
+        _type: &Type,
+        out: &mut BytesMut,
+    ) -> Result<tokio_postgres::types::IsNull, Box<dyn StdError + Sync + Send>> {
+        let timestamp = self.0.timestamp();
+        (timestamp).to_sql(_type, out)
+    }
+}
+
+impl<'a> tokio_postgres::types::FromSql<'a> for Timestamp {
+    fn from_sql(ty: &Type, raw: &'a [u8]) -> Result<Self, Box<dyn StdError + Sync + Send>> {
+        let timestamp: i64 = tokio_postgres::types::FromSql::from_sql(ty, raw)?;
+        let datetime = DateTime::<Utc>::from_timestamp(timestamp, 0).ok_or("invalid timestamp")?;
+        Ok(Timestamp(datetime))
+    }
+
+    tokio_postgres::types::accepts!(TIMESTAMP, TIMESTAMPTZ);
+}
+
+
+
+/// Сохраняет сессию в базу данных
+pub async fn save_session_to_db(session: Session) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;
+
+    debug!("Saving session to database: {:?}", session);
+
+    let expires_at = session.expires_at.map(Timestamp);
+
+    client.execute(
+        "INSERT INTO sessions (session_id, user_uuid, device_id, expires_at) VALUES ($1, $2, $3, $4)",
+        &[&session.session_id, &session.user_uuid, &session.device_id, &expires_at],
+    )
+    .await?;
+
+    Ok(())
+}
+
+/// Ищет сессию по session_id
+pub async fn find_session_by_session_id(
+    session_id: &Uuid,
+) -> Result<Option<Session>, Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;
+
+    debug!("Finding session in database by session_id: {}", session_id);
+
+    let row = client
+        .query_opt("SELECT session_id, user_uuid, device_id, expires_at FROM sessions WHERE session_id = $1", &[&session_id])
+        .await?;
+
+    if let Some(row) = row {
+        let expires_at: Option<Timestamp> = row.get(3); // Получаем expires_at как Option<Timestamp>
+        let expires_at_datetime: Option<DateTime<Utc>> = expires_at.map(|ts| ts.0); // Преобразуем Timestamp в DateTime<Utc>
+
+        let session = Session {
+            session_id: row.get(0),
+            user_uuid: row.get(1),
+            device_id: row.get(2),
+            expires_at: expires_at_datetime,
+        };
+        Ok(Some(session))
+    } else {
+        Ok(None)
+    }
+}
+/// Удаляет сессию из базы данных по session_id
+pub async fn delete_session_by_session_id(
+    session_id: &Uuid,
+) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;  
+
+
+    debug!(
+        "Deleting session from database with session_id: {}",
+        session_id
+    );
+
+    client
+        .execute("DELETE FROM sessions WHERE session_id = $1", &[&session_id])
+        .await?;
+
+    Ok(())
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/db/profiles.rs
+
+// src/db/profiles.rs
+use crate::models::Profile;
+use log::debug;
+use std::error::Error as StdError;
+use uuid::Uuid;
+use crate::db::connect_to_db;
+
+pub async fn get_profile_by_user_uuid(
+    user_uuid: &Uuid,
+) -> Result<Option<Profile>, Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;  
+
+
+    debug!("Finding profile by user_uuid: {}", user_uuid);
+
+    let row = client
+        .query_opt(
+            "SELECT user_uuid, bio, avatar FROM profiles WHERE user_uuid = $1",
+            &[&user_uuid],
+        )
+        .await?;
+
+    match row {
+        Some(row) => {
+            let profile = Profile {
+                user_uuid: row.get(0),
+                bio: row.get(1),
+                avatar: row.get(2),
+            };
+            Ok(Some(profile))
+        }
+        None => Ok(None),
+    }
+}
+
+// Функция для создания профиля (если его нет)
+pub async fn create_profile(user_uuid: &Uuid) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;
+
+
+    debug!("Creating profile for user_uuid: {}", user_uuid);
+
+    client
+        .execute(
+            "INSERT INTO profiles (user_uuid, bio, avatar) VALUES ($1, NULL, NULL)",
+            &[&user_uuid],
+        )
+        .await?;
+
+    Ok(())
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/db/files.rs
+
+// src/db/files.rs
+use crate::models::FileInfo;
+use chrono::{DateTime, Utc}; // Добавляем импорт
+use log::debug;
+use std::error::Error as StdError;
+use uuid::Uuid;
+use crate::db::connect_to_db;
+
+/// Сохраняет информацию о файле в базу данных
+pub async fn save_file_info(
+    filename: &str,
+    user_uuid: Uuid,
+) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;
+
+    
+
+    debug!(
+        "Saving file info to database: filename={}, user_uuid={}",
+        filename, user_uuid
+    );
+    let file_uuid = Uuid::new_v4(); // Add this line
+
+    client.execute(
+        "INSERT INTO files (file_id, filename, user_uuid, upload_time) VALUES ($1, $2, $3, NOW())", // Update this line
+        &[&file_uuid, &filename, &user_uuid], // Update this line
+    )
+    .await?;
+
+    Ok(())
+}
+
+/// Получает список файлов пользователя из базы данных
+/// Получает список файлов пользователя из базы данных
+pub async fn get_files_by_user_uuid(
+    user_uuid: Uuid,
+) -> Result<Vec<FileInfo>, Box<dyn StdError + Send + Sync>> {
+    let client = connect_to_db().await?;
+
+
+
+    debug!("Getting files for user_uuid: {}", user_uuid);
+
+    let rows = client
+        .query(
+            "SELECT filename, upload_time, file_id FROM files WHERE user_uuid = $1",
+            &[&user_uuid],
+        )
+        .await?;
+
+    let mut files = Vec::new();
+    for row in rows {
+        let filename: String = row.get(0);
+        let upload_time: DateTime<Utc> = row.get(1);
+        let upload_time_string: String = upload_time.to_rfc3339();
+        let file_id: Uuid = row.get(2);
+        files.push(FileInfo {
+            filename,
+            upload_time: upload_time_string,
+            file_id,
+        });
+    }
+
+    Ok(files)
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/src/db/mod.rs
+
+pub mod devices;
+pub mod files;
+pub mod messages;
+pub mod profiles;
+pub mod sessions;
+pub mod users;
+pub use messages::send_message_history;
+
+use tokio_postgres::NoTls;
+use std::error::Error as StdError;
+pub use log::error;
+pub use std::env; // Добавляем импорт
+
+pub async fn connect_to_db() -> Result<tokio_postgres::Client, Box<dyn StdError + Send + Sync>> {
+    // Получаем строку подключения из переменной окружения
+    let database_url = env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set"); //  Если переменной нет, будет паника
+
+    let (client, connection) =
+        tokio_postgres::connect(&database_url, NoTls) // Используем database_url
+            .await?;
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            error!("connection error: {}", e);
+        }
+    });
+
+    Ok(client)
+}
+
+
+/var/www/rust_server_cyb3ria_xyz/static/css/chat.css
+
+/* /var/www/rust_server_cyb3ria_xyz/static/css/chat.css */
+
+#messages {
+    list-style-type: none;
+    padding: 0;
+    width: 100%;
+    max-width: 800px; /*  добавим  ограничение ширины */
+    max-height: 75vh;
+    overflow-y: auto;
+    border: 1px solid #444;
+    background-color: #2e2e2e;
+    margin-bottom: 20px;
+}
+
+#messages li {
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #2e2e2e; /* Сделали фон таким же, как у контейнера */
+    border-bottom: none; /* Убрали нижнюю границу */
+}
+
+
+/var/www/rust_server_cyb3ria_xyz/static/css/dashboard.css
+
+.dashboard-info {
+    background: #333;
+    padding: 20px;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 800px;
+}
+.dashboard-info h2 {
+    margin-top: 20px;
+    font-size: 1.5em;
+}
+
+
+
+/var/www/rust_server_cyb3ria_xyz/static/css/forms.css
+
+/* /var/www/rust_server_cyb3ria_xyz/static/css/forms.css */
+/* Общие стили для форм и их элементов */
+
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Центрируем элементы по горизонтали */
+    width: 100%; /*  ширина */
+    max-width: 600px; /*  максимальная ширина */
+    margin: 0 auto; /*  центрируем форму на странице */
+}
+
+input[type="text"],
+input[type="password"],
+input[type="file"],
+textarea {
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #555;
+    background: #333;
+    color: #e0e0e0;
+    width: 100%; /*  ширина */
+    box-sizing: border-box; /*  чтобы padding не увеличивал ширину */
+    border-radius: 4px; /*  скругленные углы */
+}
+
+button, input[type="submit"] {
+    padding: 10px 20px;
+    background: #4CAF50;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    width: auto; /*  ширина по содержимому */
+     margin-top: 10px;
+}
+
+button:hover, input[type="submit"]:hover {
+    background: #367c39;
+}
+
+/*  для инпутов в чате */
+#form {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+     max-width: 800px;
+    margin: 0 auto;
+}
+
+#input {
+    border: 1px solid #555;
+    padding: 10px;
+    width: 80%;
+    margin-right: 10px;
+    border-radius: 4px;
+    background-color: #333;
+    color: #e0e0e0;
+}
+
+#form > button {
+    background: #4CAF50;
+    border: none;
+    padding: 10px 20px;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+     flex-shrink: 0; /* Запрещаем кнопке сжиматься */
+}
+
+
+/var/www/rust_server_cyb3ria_xyz/static/css/menu.css
+
+.main-menu {
+position: fixed;
+top: 0;
+left: 0;
+width: 250px;
+height: 100vh;
+background-color: #706f6f;
+transition: transform 0.3s ease;
+z-index: 100;
+overflow-y: auto;
+}
+
+/* Стили для десктопа (ПК) */
+@media (min-width: 769px) {
+    /* На ПК меню видно по умолчанию */
+    .main-menu {
+        transform: translateX(0);
+    }
+
+    /* При добавлении класса active меню сдвигается влево (скрывается) */
+    .main-menu.active {
+        transform: translateX(-100%);
+    }
+
+    /* Кнопка переключения меню всегда видна справа от меню */
+    .menu-toggle {
+        right: calc(250px + 10px); /* Устанавливаем отступ справа от меню */
+    }
+}
+.main-menu.active {
+transform: translateX(-100%);
+}
+.menu-toggle {
+    position: fixed;
+    top: 10px;
+    left: 260px; /* Находится рядом с меню */
+    background-color: #ddd;
+    border: none;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    z-index: 200; /* Поверх меню */
+    transition: left 0.3s ease;
+    border-radius: 6px; /* Добавь скругление углов */
+}
+/* Стили для мобильных устройств */
+@media (max-width: 768px) {
+    /* На мобильных меню скрыто по умолчанию */
+    .main-menu {
+        transform: translateX(-100%);
+        width: 250px;
+    }
+
+    /* При добавлении класса active меню появляется */
+    .main-menu.active {
+        transform: translateX(0);
+    }
+
+    /* Кнопка переключения меню всегда видна справа от меню */
+    .menu-toggle {
+        right: 10px; /* Кнопка остается справа от меню */
+    }
+}
+/* Стили для элементов списка меню */
+.main-menu ul {
+list-style: none;
+padding: 0;
+margin: 0;
+}
+
+.main-menu li {
+margin-bottom: 10px;
+}
+
+.main-menu a,
+.main-menu button {
+color: #333;
+text-decoration: none;
+padding: 5px 10px;
+display: block;
+border-radius: 3px;
+}
+
+.main-menu a:hover,
+.main-menu button:hover {
+background-color: #555;
+color: #fff;
+}
+
+.main-menu button {
+background-color: transparent;
+border: none;
+text-align: left;
+}
+
+
+/var/www/rust_server_cyb3ria_xyz/static/css/profile.css
+
+#profileData {
+    max-width: 600px; /*  Максимальная ширина блока /
+    margin: 20px auto; /  Центрируем блок по горизонтали /
+    padding: 20px;
+    background-color: #2e2e2e; /  Тёмный фон, как в чате /
+    border: 1px solid #444; /  Тёмная рамка /
+    border-radius: 5px; /  Скругленные углы /
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5); /  Тень */
+    }
+    
+    #profileData p {
+    margin-bottom: 15px; /*  Отступ между строками /
+    line-height: 1.6; /  Увеличиваем межстрочный интервал */
+    }
+    
+    #profileData p:last-child {
+    margin-bottom: 0; /* Убираем отступ у последнего элемента */
+    }
+    
+    #profileData span {
+    font-weight: bold; /*  Выделяем значения жирным /
+    color: #eee;    /  Светло-серый цвет текста */
+    }
+    #username{
+    text-transform: uppercase;
+    }
+    
+    /*  Можно добавить стили для аватарки, если она будет изображением /
+    /
+    #profileData img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin-bottom: 10px;
+    display: block;
+    }
+    */
+
+
+/var/www/rust_server_cyb3ria_xyz/static/css/styles.css
+
+/* /var/www/rust_server_cyb3ria_xyz/static/css/styles.css */
+
+/* Общие стили, базовые стили для всего приложения */
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100vh;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+}
+
+h1 {
+    font-size: 3em;
+    margin-bottom: 20px;
+}
+
+a {
+    color: #4CAF50;
+    text-decoration: none;
+    font-weight: bold;
+    display: block; /*  чтобы ссылки занимали всю ширину блока */
+    margin: 20px 0;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+
+/var/www/rust_server_cyb3ria_xyz/static/css/upload.css
+
+/* /var/www/rust_server_cyb3ria_xyz/static/css/upload.css */
+
+#uploadForm {
+    /*  стили для формы загрузки */
+    margin-bottom: 20px;
+}
+
+#result {
+    /*  стили для вывода результата загрузки */
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+#fileList {
+    /*  стили для списка файлов */
+    list-style: none;
+    padding: 0;
+}
+
+#fileList li {
+    margin-bottom: 5px;
+}
+
+#fileList a {
+    /*  стили для ссылок на файлы */
+    color: #4CAF50; /*  зеленый цвет */
+}
+
+
+/var/www/rust_server_cyb3ria_xyz/static/js/menu.js
+
+document.addEventListener('DOMContentLoaded', () => {
+    const menuContainer = document.getElementById('menu-container');
+    
+    if (menuContainer) {
+        fetch('/static/menu.html')
+            .then(response => response.text())
+            .then(menuHtml => {
+                menuContainer.innerHTML = menuHtml;
+    
+                const menuToggle = document.getElementById('menu-toggle');
+                const mainMenu = document.querySelector('.main-menu');
+    
+                if (!menuToggle || !mainMenu) return;
+    
+                function updateButtonAppearance() {
+                    if (window.innerWidth >= 769) {
+                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '>' : '<';
+                    } else {
+                        menuToggle.innerHTML = mainMenu.classList.contains('active') ? '>' : '<';
+                    }
+                }
+    
+                function updateButtonPosition() {
+                    if (window.innerWidth >= 769) {
+                        menuToggle.style.left = mainMenu.classList.contains('active') ? '10px' : '260px';
+                    } else {
+                        menuToggle.style.left = '10px';
+                    }
+                }
+    
+                // Устанавливаем начальное состояние кнопки
+                updateButtonAppearance();
+                updateButtonPosition();
+    
+                menuToggle.addEventListener('click', () => {
+                    mainMenu.classList.toggle('active');
+                    updateButtonAppearance();
+                    updateButtonPosition();
+                });
+    
+                window.addEventListener('resize', () => {
+                    updateButtonAppearance();
+                    updateButtonPosition();
+                });
+    
+                const logoutBtn = document.getElementById('logoutBtn');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', function() {
+                        fetch('/api/logout', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                        })
+                        .then(response => {
+                            if (response.ok) {
+                                window.location.href = '/static/choice.html';
+                            } else {
+                                alert('Logout failed.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Logout failed.');
+                        });
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading menu:', error);
+            });
+    }
+});
+
+
+
+/var/www/rust_server_cyb3ria_xyz/static/js/scripts.js
+
+// /var/www/rust_server_cyb3ria_xyz/static/js/scripts.js
+
+// Получаем IP-адрес клиента
+let ipAddress = '';  // Объявляем переменную в начале файла
+fetch('https://api.ipify.org?format=json')
+    .then(response => response.json())
+    .then(data => {
+        ipAddress = data.ip;
+        console.log('Client IP Address:', ipAddress);
+    })
+    .catch(error => {
+        console.error('Error fetching IP address:', error);
+    });
+
+// MAC-адрес (заглушка)
+let macAddress = '00:00:00:00:00:00';
+
+let ws = null; // Глобальная переменная для WebSocket
+
+function connectWebSocket() {
+    if (ws) {
+        ws.close();
+        console.log('WebSocket connection closed');
+    }
+
+    const sessionId = localStorage.getItem('session_id');
+    if (!sessionId) {
+        console.error('Session ID not found.');
+        return;
+    }
+
+    ws = new WebSocket(`wss://cyb3ria.xyz/api/ws?session_id=${encodeURIComponent(sessionId)}`);
+
+    ws.onopen = () => {
+        console.log('WebSocket connection established');
+        document.getElementById('connection-status').textContent = "Connected";
+    };
+
+    ws.onmessage = event => {
+        const li = document.createElement('li');
+        li.textContent = event.data;
+        if (messages) { // Проверяем, существует ли messages
+            messages.appendChild(li);
+             messages.scrollTop = messages.scrollHeight;
+        }
+
+    };
+
+    ws.onerror = error => {
+        console.error('WebSocket error:', error);
+        document.getElementById('connection-status').textContent = "Error";
+        setTimeout(connectWebSocket, 5000);
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket connection closed');
+        document.getElementById('connection-status').textContent = "Disconnected";
+        setTimeout(connectWebSocket, 5000);
+    };
+}
+
+//  DOMContentLoaded для chat.html
+document.addEventListener('DOMContentLoaded', () => {
+     const messages = document.getElementById('messages');
+     const form = document.getElementById('form');
+     const input = document.getElementById('name');
+
+     if (messages && form && input) { // Проверка на null
+        connectWebSocket(); // Подключаем WebSocket только на странице чата
+        form.addEventListener('submit', event => {
+          event.preventDefault();
+          const message = {
+              message: input.value,
+              ip: ipAddress,
+              mac: macAddress
+           };
+            if(ws){ // Проверяем, что ws определен
+                ws.send(JSON.stringify(message));
+            }
+
+            input.value = '';
+        });
+    }
+});
+
+
+/var/www/rust_server_cyb3ria_xyz/static/chat.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Chat</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/menu.css">
+    <link rel="stylesheet" href="/static/css/forms.css">
+    <link rel="stylesheet" href="/static/css/chat.css">
+</head>
+<body>
+    <nav id="menu-container"></nav>
+    <h1>Chat</h1>
+    <p id="connection-status">Connecting</p>
+    <ul id="messages"></ul>
+    <form id="form" action="">
+        <input id="name" autocomplete="off" placeholder="Type your message here..." />
+        <button type="submit">Send</button>
+    </form>  
+    <script src="/static/js/menu.js"></script>
+    <script src="/static/js/scripts.js"></script>
+</body>
+</html>
+
+
+/var/www/rust_server_cyb3ria_xyz/static/choice.html
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome!</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #111;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        a {
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: bold;
+            display: block;
+            margin: 20px 0;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome!</h1>
+    <a href="/static/login.html">Login</a>
+    <a href="/static/register.html">Register</a>
+</body>
+</html>
+
+
+
+/var/www/rust_server_cyb3ria_xyz/static/dashboard.html
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/menu.css">
+    <link rel="stylesheet" href="/static/css/forms.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <div id="menu-container"></div>
+    <h1>Dashboard</h1>
+    
+    <div class="dashboard-info">
+        <p>Привет, <span id="username">User</span>!</p>
+        <p>Статус соединения: <span id="connection-status">Loading...</span></p>
+        
+        <h2>Последние сообщения:</h2>
+        <ul id="latest-messages"></ul>
+    </div>
+    
+    <script src="/static/js/menu.js"></script>
+    <script src="/static/js/scripts.js"></script>
+</body>
+</html>
+
+
+
+/var/www/rust_server_cyb3ria_xyz/static/login.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <h1>Login</h1>
+    <form id="loginForm">
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username" required title="Username must be between 3 and 16 characters"><br>
+        <small>Username must be between 3 and 16 characters</small><br>
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password" required title="Password must be between 6 and 16 characters"><br>
+         <small>Password must be between 6 and 16 characters</small><br>
+        <input type="hidden" id="ipAddress" name="ipAddress">
+        <input type="hidden" id="macAddress" name="macAddress">
+        <button type="submit">Login</button>
+    </form>
+     <div id="result"></div>
+    <script>
+        // Получаем IP-адрес клиента
+        fetch('https://api.ipify.org?format=json')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('ipAddress').value = data.ip;
+            })
+            .catch(error => {
+                console.error('Error fetching IP address:', error);
+            });
+
+        // MAC-адрес нельзя получить напрямую в браузере, используем заглушку
+        document.getElementById('macAddress').value = '00:00:00:00:00:00';
+
+        document.getElementById('loginForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const ipAddress = document.getElementById('ipAddress').value;
+            const macAddress = document.getElementById('macAddress').value;
+
+            fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    username: username, 
+                    password: password,
+                    ip_address: ipAddress,
+                    mac_address: macAddress
+                })
+            })
+          .then(async response => {
+                if (!response.ok) {
+                  try {
+                      const errorData = await response.json();
+                      throw new Error(errorData.message);
+                   } catch (jsonError) {
+                      throw new Error(`Network response was not ok: ${response.statusText}`);
+                    }
+                }
+                return response.json();
+            })
+            .then(data => {
+               console.log('Success:', data);
+               localStorage.setItem('session_id', data.session_id); // Сохраняем session_id в localStorage
+                if(data.username) {
+                    window.location.href = `/static/dashboard.html`; // После логина перенаправляем на dashboard
+                } else {
+                    document.getElementById('result').textContent = data.message;
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                document.getElementById('result').textContent = 'Error: ' + error.message;
+            });
+            
+        });
+    </script>
+</body>
+</html>
+
+
+/var/www/rust_server_cyb3ria_xyz/static/menu.html
+
+<!-- /var/www/rust_server_cyb3ria_xyz/static/menu.html -->
+<button id="menu-toggle" class="menu-toggle">></button>
+<nav class="main-menu">
+    <ul>
+        <li><a href="/static/dashboard.html">Dashboard</a></li>
+        <li><a href="/static/chat.html">Chat</a></li>
+        <li><a href="/static/profile.html">Profile</a></li>
+        <li><a href="/static/upload.html">Upload</a></li>
+        <li><button id="logoutBtn">Logout</button></li>
+    </ul>
+</nav>
+
+
+/var/www/rust_server_cyb3ria_xyz/static/profile.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/menu.css">
+    <!--  <link rel="stylesheet" href="/static/css/forms.css">  Если нужен -->
+    <link rel="stylesheet" href="/static/css/profile.css">  <!-- Если есть специфичные стили -->
+</head>
+<body>
+    <div id="menu-container"></div>
+    <h1>Profile</h1>
+    <div id="profileData">
+      <p>Username: <span id="username"></span></p>
+      <p>Bio: <span id="bio"></span></p>
+      <p>Avatar: <span id="avatar"></span></p>
+    </div>
+
+    <script src="/static/js/menu.js"></script>
+    <script src="/static/js/scripts.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      fetch('/api/profile', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+      })
+      .then(response => {
+          if (!response.ok) {
+              throw new Error('Network response was not ok');
+          }
+          return response.json();
+      })
+      .then(data => {
+            document.getElementById('username').textContent = data.username;
+            document.getElementById('bio').textContent = data.bio || 'No bio provided.';
+            document.getElementById('avatar').textContent = data.avatar || 'No avatar provided.';
+        })
+       .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('profileData').textContent = 'Failed to load profile.';
+        });
+     });
+
+    </script>
+</body>
+</html>
+
+
+/var/www/rust_server_cyb3ria_xyz/static/register.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <h1>Register</h1>
+    <form id="registerForm">
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username" required title="Username must be between 3 and 16 characters"><br>
+        <small>Username must be between 3 and 16 characters</small><br>
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password" required title="Password must be between 6 and 16 characters"><br>
+        <small>Password must be between 6 and 16 characters</small><br>
+        <label for="repeatPassword">Repeat Password:</label><br>
+        <input type="password" id="repeatPassword" name="repeatPassword" required title="Repeat password must be between 6 and 16 characters"><br>
+         <small>Repeat password must be between 6 and 16 characters</small><br>
+        <label for="invitationCode">Invitation Code:</label><br>
+        <input type="text" id="invitationCode" name="invitationCode" required title="Invitation code must be between 3 and 16 characters"><br>
+        <small>Invitation code must be between 3 and 16 characters</small><br>
+        <input type="hidden" id="ipAddress" name="ipAddress">
+        <input type="hidden" id="macAddress" name="macAddress">
+        <button type="submit">Register</button>
+    </form>
+    <div id="result"></div>
+    <script>
+        // Получаем IP-адрес клиента
+        fetch('https://api.ipify.org?format=json')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('ipAddress').value = data.ip;
+            })
+            .catch(error => {
+                console.error('Error fetching IP address:', error);
+            });
+
+        // MAC-адрес нельзя получить напрямую в браузере
+        document.getElementById('macAddress').value = '00:00:00:00:00:00'; // Заглушка
+
+        document.getElementById('registerForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const repeatPassword = document.getElementById('repeatPassword').value;
+            const invitationCode = document.getElementById('invitationCode').value;
+            const ipAddress = document.getElementById('ipAddress').value;
+            const macAddress = document.getElementById('macAddress').value;
+
+            if (!username || !password || !repeatPassword || !invitationCode) {
+                document.getElementById('result').textContent = 'Please fill in all fields.';
+                return;
+            }
+
+            fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password,
+                    repeat_password: repeatPassword,
+                    invitation_code: invitationCode,
+                    ip_address: ipAddress,
+                    mac_address: macAddress
+                })
+            })
+            .then(async response => {
+                if (response.ok) {
+                    // Просто перенаправляем пользователя, если ответ успешен (код 302)
+                    window.location.href = '/static/login.html';
+                } else {
+                  try {
+                      const errorData = await response.json();
+                      throw new Error(errorData.message);
+                   } catch (jsonError) {
+                      throw new Error(`Network response was not ok: ${response.statusText}`);
+                    }
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+               document.getElementById('result').textContent = 'Error: ' + error.message;
+            });
+        });
+    </script>
+</body>
+</html>
+
+
+/var/www/rust_server_cyb3ria_xyz/static/upload.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/menu.css">
+    <link rel="stylesheet" href="/static/css/forms.css">  <!--  Общие стили для форм -->
+    <link rel="stylesheet" href="/static/css/upload.css">  <!--  Стили, специфичные для upload.html -->
+</head>
+<body>
+    <div id="menu-container"></div>
+    <h1>Upload</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="file" name="file" required>
+        <button type="submit">Upload</button>
+    </form>
+    <div id="result"></div>
+
+    <h2>Uploaded Files</h2>
+    <ul id="fileList"></ul>
+
+    <script src="/static/js/menu.js"></script>
+    <script src="/static/js/scripts.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // Function to fetch and display files
+            function fetchFiles() {
+                fetch('/api/files', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load file list');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                            console.log('API Response:', data);
+                    const fileList = document.getElementById('fileList');
+                    fileList.innerHTML = ''; // Clear existing list
+                         if (data && Array.isArray(data)) {
+                    data.forEach(file => {
+                        const li = document.createElement('li');
+                        const a = document.createElement('a');
+                        a.href = `/uploaded/${file.filename}`;
+                        a.textContent = `${file.filename}   file_id  ${file.file_id}`;
+                        li.appendChild(a);
+                        fileList.appendChild(li);
+                    });
+                         } else {
+                    console.error('Invalid data structure:', data);
+                    document.getElementById('fileList').textContent = 'Failed to load file list due to invalid data format.';
+                }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('fileList').textContent = 'Failed to load file list.';
+                });
+            }
+
+            // Call fetchFiles on page load
+            fetchFiles();
+
+            document.getElementById('uploadForm').addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                const fileInput = document.getElementById('file');
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    document.getElementById('result').textContent = 'Please select a file to upload.';
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => { throw new Error('Network response was not ok: ' + text) });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    fetchFiles()
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                    document.getElementById('result').textContent = 'Error: ' + error.message;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+
+
