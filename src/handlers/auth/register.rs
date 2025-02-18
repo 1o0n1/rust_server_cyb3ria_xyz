@@ -81,8 +81,6 @@ pub async fn register_handler(
 
             info!("User registered successfully. Redirecting to login page.");
             //  Редирект на страницу логина.  Здесь вместо JSON, простой редирект
-            let resp = warp::reply::with_status(warp::reply::html(""), StatusCode::FOUND)
-                .into_response(); //  Использовали HTML для редиректа.
 
              let mut resp =
                  warp::reply::with_status(warp::reply::json(&""), StatusCode::FOUND).into_response();

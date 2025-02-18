@@ -3,7 +3,7 @@ use crate::db::files::get_files_by_user_uuid;
 use crate::models::FileInfo;
 use log::{debug, error};
 use uuid::Uuid;
-use warp::{http::StatusCode, reply::Json, reply::Response, Filter, Rejection};
+use warp::{reply::Json, Filter, Rejection};
 pub async fn get_files_handler(user_uuid: Uuid) -> Result<Json, Rejection> {
     debug!("Received request for files for user_uuid: {}", user_uuid);
 

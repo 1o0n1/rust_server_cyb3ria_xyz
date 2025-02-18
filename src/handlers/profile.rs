@@ -6,7 +6,7 @@ use crate::models::{ProfileResponse, UpdateProfileRequest, UpdateProfileResponse
 use log::{debug, error};
 use uuid::Uuid;
 use warp::Reply;
-use warp::{http::StatusCode, reply::Response, Filter, Rejection, reply::json};
+use warp::{http::StatusCode, reply::Response, Filter, Rejection};
 use chrono::Utc;
 
 pub async fn profile_handler(user_uuid: Uuid) -> Result<Response, Rejection> {

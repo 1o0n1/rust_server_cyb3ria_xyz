@@ -39,6 +39,7 @@ function connectWebSocket() {
     ws.onmessage = event => {
         const li = document.createElement('li');
         li.textContent = event.data;
+        const messages = document.getElementById('messages');
         if (messages) { // Проверяем, существует ли messages
             messages.appendChild(li);
              messages.scrollTop = messages.scrollHeight;

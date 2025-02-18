@@ -2,7 +2,7 @@
 use crate::db::sessions::find_session_by_session_id;
 use log::{debug, error};
 use uuid::Uuid;
-use warp::{http::StatusCode, Filter, Rejection};
+use warp::{Filter, Rejection};
 
 pub fn with_auth() -> impl Filter<Extract = (Uuid,), Error = Rejection> + Clone {
     warp::cookie("session_id").and_then(|session_id: String| async move {

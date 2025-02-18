@@ -50,7 +50,10 @@
             const profileData = document.getElementById('profileData');
             const editProfileForm = document.getElementById('editProfileForm');
             const usernameSpan = document.getElementById('username');
-            const bioTextarea = document.getElementById('bio');
+            //const bioTextarea = document.getElementById('bio'); //Убираем старый селектор
+            const bioTextarea = document.querySelector('#editProfileForm textarea[name="bio"]'); //Добавляем новый
+
+            const bioSpan = document.getElementById('bio');
             const avatarInput = document.getElementById('avatar');
             const avatarImg = document.getElementById('avatarImg');
             const profileBannerInput = document.getElementById('profileBanner');
@@ -85,7 +88,7 @@
                     return;
                 }
 
-                fetch(`/api/profile/${userUuid}`, {
+                fetch(`/api/profile/${userUuid}`, { // Добавляем userUuid в URL
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
@@ -100,6 +103,7 @@
                 .then(data => {
                     usernameSpan.textContent = data.username;
                     bioTextarea.value = data.bio || '';
+                    bioSpan.textContent = data.bio || ''; // Обновляем значение span элемента
                     avatarInput.value = data.avatar || '';
                     avatarImg.src = data.avatar || '';
                     profileBannerInput.value = data.profile_banner || '';
@@ -128,11 +132,12 @@
                 event.preventDefault();
 
                 const bio = bioTextarea.value;
+                console.log("Value of bio before sending:", bio); // Добавляем эту строку
                 const avatar = avatarInput.value;
                 const profileBanner = profileBannerInput.value;
                 const storageAccess = storageAccessSelect.value;
-                const allowedViewersInput = document.getElementById('allowedViewers').value;
-                const allowedViewers = allowedViewersInput.split(',').map(s => s.trim()).filter(s => s !== '');
+                const allowedViewersInputVal = document.getElementById('allowedViewers').value;
+                const allowedViewers = allowedViewersInputVal.split(',').map(s => s.trim()).filter(s => s !== '');
 
                 fetch('/api/profile', {
                     method: 'PUT',
@@ -155,7 +160,7 @@
                 })
                 .then(data => {
                     alert('Profile updated successfully!');
-                    fetchProfile();
+                    fetchProfile(); //Перезагружаем профиль
                 })
                 .catch(error => {
                     console.error('Error:', error);
