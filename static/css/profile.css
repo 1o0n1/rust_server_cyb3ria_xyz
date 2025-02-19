@@ -1,50 +1,93 @@
+/* Общие стили */
+#profilePageContainer {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow-y: auto; /* Добавляем вертикальную прокрутку */
+}
+
+#profileBannerImg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+}
+
+#avatarImg {
+    width: 150px;
+    height: 150px;
+    border-radius: 10px;
+    border: 2px solid #00829b;
+    object-fit: cover;
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+}
+
+#profileDataContainer {
+    position: absolute;
+    top: 190px; /* Размещаем сразу под аватаром (высота аватара + отступ) */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    max-width: 80%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    color: #eee;
+    box-sizing: border-box;
+}
+
 #profileData {
-    max-width: 600px;
+    width: 100%;
     margin: 0 auto;
     padding: 20px;
-    background-color: #0a0a0a; /* Чёрный фон */
-    border: 1px solid #00829b; /* Тонкая синяя рамка */
-    border-radius: 8px;
+    border: 1px solid #00829b;
+    border-radius: 10px;
     font-family: 'Orbitron', sans-serif;
     color: #eee;
+    position: relative;
+    text-align: center;
+    background-color: rgba(10, 10, 10, 0.7);
+    z-index: 3;
 }
 
-/* Заголовок */
-#profileData h2 {
-    font-size: 1.5em;
-    color: #00829b;
-    text-transform: uppercase;
-    border-bottom: 1px solid #00829b;
-    padding-bottom: 5px;
-}
-
-/* Текст */
-#profileData p {
-    font-size: 14px;
-    line-height: 1.4;
-    color: #ccc;
-    margin: 5px 0;
-}
-
-/* Выделение ключевых элементов */
-#profileData span {
-    font-weight: bold;
-    color: #ff534b;
-}
-
-/* Стиль имени пользователя */
-#username {
-    text-transform: uppercase;
-    color: #00829b;
-    font-weight: bold;
-}
-
-/* Аватарка */
-#profileData img {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    display: block;
+#editProfileForm {
+    width: 100%;
+    margin: 20px auto;
+    padding: 20px;
     border: 1px solid #00829b;
-    object-fit: cover;
+    border-radius: 8px;
+    background-color: rgba(10, 10, 10, 0.7);
+}
+
+#editProfileHeader {
+    text-align: center;
+    color: #00829b;
+    text-transform: uppercase;
+}
+
+/* Скрываем аватар, если просматриваем чужой профиль (дополнительно) */
+body:not(:has(#editProfileForm)) #avatarImg {
+    display: block; /* Показывать аватар, если нет формы редактирования */
+}
+
+/* Медиа-запрос для мобильных устройств */
+@media (max-width: 767px) {
+    #profileDataContainer {
+        width: 89%; /* Увеличиваем ширину блока на мобильных устройствах */
+        max-width: 89%; /*  Чтобы блок не выходил за границы экрана */
+        left: auto; /* Убираем left: 50% */
+        right: auto; /* Убираем right: 0 */
+        transform: none; /* Убираем transform: translateX(-50%) */
+        margin-left: auto; /*  Центрируем блок */
+        margin-right: auto; /* Центрируем блок */
+    }
 }

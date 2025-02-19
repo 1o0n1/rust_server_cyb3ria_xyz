@@ -11,48 +11,48 @@
 </head>
 <body>
     <div id="menu-container"></div>
-    <h1>Profile</h1>
-    <div id="profileData">
-        <img id="avatarImg" src="" alt="Avatar">
+    <div id="profilePageContainer">
         <img id="profileBannerImg" src="" alt="Profile Banner">
-        <p>Username: <span id="username"></span></p>
-        <p>Bio: <span id="bio"></span></p>
-        <p>Storage Access: <span id="storageAccess"></span></p>
+        <img id="avatarImg" src="" alt="Avatar">
+        <div id="profileDataContainer">
+            <div id="profileData">
+                <p>Username: <span id="username"></span></p>
+                <p>Bio: <span id="bio"></span></p>
+                <p>Storage Access: <span id="storageAccess"></span></p>
+            </div>
+            <h2 id="editProfileHeader">Edit Profile</h2>
+            <form id="editProfileForm">
+                <label for="bio">Bio:</label><br>
+                <textarea id="bio" name="bio"></textarea><br><br>
+
+                <label for="avatar">Avatar URL:</label><br>
+                <input type="text" id="avatar" name="avatar"><br><br>
+
+                <label for="profileBanner">Profile Banner URL:</label><br>
+                <input type="text" id="profileBanner" name="profileBanner"><br><br>
+
+                <label for="storageAccessSelect">Storage Access:</label><br>
+                <select id="storageAccessSelect" name="storageAccess">
+                    <option value="Private">Private</option>
+                    <option value="Public">Public</option>
+                    <option value="SpecificUsers">Specific Users</option>
+                </select><br><br>
+
+                <label for="allowedViewers">Allowed Viewers (UUIDs, comma-separated):</label><br>
+                <input type="text" id="allowedViewers" name="allowedViewers"><br><br>
+
+                <button type="submit">Update Profile</button>
+            </form>
+        </div>
     </div>
-
-    <h2 id="editProfileHeader">Edit Profile</h2>
-    <form id="editProfileForm">
-        <label for="bio">Bio:</label><br>
-        <textarea id="bio" name="bio"></textarea><br><br>
-
-        <label for="avatar">Avatar URL:</label><br>
-        <input type="text" id="avatar" name="avatar"><br><br>
-
-        <label for="profileBanner">Profile Banner URL:</label><br>
-        <input type="text" id="profileBanner" name="profileBanner"><br><br>
-
-        <label for="storageAccessSelect">Storage Access:</label><br>
-        <select id="storageAccessSelect" name="storageAccess">
-            <option value="Private">Private</option>
-            <option value="Public">Public</option>
-            <option value="SpecificUsers">Specific Users</option>
-        </select><br><br>
-
-        <label for="allowedViewers">Allowed Viewers (UUIDs, comma-separated):</label><br>
-        <input type="text" id="allowedViewers" name="allowedViewers"><br><br>
-
-        <button type="submit">Update Profile</button>
-    </form>
-
+    
     <script src="/static/js/menu.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const profileData = document.getElementById('profileData');
             const editProfileForm = document.getElementById('editProfileForm');
             const usernameSpan = document.getElementById('username');
-            //const bioTextarea = document.getElementById('bio'); //Убираем старый селектор
-            const bioTextarea = document.querySelector('#editProfileForm textarea[name="bio"]'); //Добавляем новый
-
+            const bioTextarea = document.querySelector('#editProfileForm textarea[name="bio"]');
             const bioSpan = document.getElementById('bio');
             const avatarInput = document.getElementById('avatar');
             const avatarImg = document.getElementById('avatarImg');
